@@ -41,6 +41,9 @@ class Osiris:
                 #remove bracket, spaces, line breaks
                 l = l.replace("{","").replace(" ","").replace("\n","")
 
+                #skip comment lines
+                if l[0]=="!": continue
+
                 #find needed categories
                 if (l=="diag_emf") or (l=="diag_species"): cat = l
 

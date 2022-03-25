@@ -39,8 +39,10 @@ def parallel(function, it, nbrCores, plot=False):
     #re enable interactive window for plots
     if plot: plt.switch_backend('Qt5Agg')
 
-    #results is in format: [list (times), tuple (nbr of outputs of function), np.array]
-    #for single output:    [list (times), np.array]
+    #results is in format:
+    # [list (times), tuple (nbr of outputs of function), np.array (of various sizes)]
+    #for single output:
+    # [list (times), np.array]
 
     if type(results[1])==tuple:
         return (np.array(r,copy=False) for r in zip(*results))
