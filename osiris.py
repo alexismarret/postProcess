@@ -16,7 +16,7 @@ import parallel_functions as pf
 class Osiris:
 
     #--------------------------------------------------------------
-    def __init__(self, run, spNorm=None, nbrCores=6):
+    def __init__(self, run, spNorm=None, nbrCores=5):
 
         self.path = os.environ.get("OSIRIS_RUN_DIR") + "/" + run
         self.nbrCores = nbrCores

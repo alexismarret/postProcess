@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 from multiprocessing import Pool
 # import multiprocessing.pool as mpp
 from memory_profiler import profile
+import time as ti
 
 #--------------------------------------------------------------
 # @profile
@@ -55,9 +56,8 @@ def parallel(function, it, nbrCores, plot=False):
 def readData(dataPath):
 
     with h5py.File(dataPath,"r") as f:
-
-        #data has inverted space axis, need .T
-        return f[list(f.keys())[-1]][()].T #might be wrong in 3D!
+        #data has inverted space axis, need .T, might be wrong in 3D!
+        return f[list(f.keys())[-1]][()].T
 
 
 #--------------------------------------------------------------

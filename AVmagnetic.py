@@ -48,19 +48,6 @@ normB = np.mean(np.sqrt(o.getB(time,"x")**2+
                         o.getB(time,"y")**2+
                         o.getB(time,"z")**2),axis=(1,2))
 
-# avTiL = np.mean(TiL,axis=(1,2))
-# avTiR = np.mean(TiR,axis=(1,2))
-# avTeL = np.mean(TeL,axis=(1,2))
-# avTeR = np.mean(TeR,axis=(1,2))
-
-# avB = np.mean(normB,axis=(1,2))
-
-# avUiL = np.mean(UiL,axis=(1,2))
-# avUiR = np.mean(UiL,axis=(1,2))
-# avUeL = np.mean(UiL,axis=(1,2))
-# avUeR = np.mean(UiL,axis=(1,2))
-
-
 GRavwB = np.gradient(normB)
 
 sat = []
@@ -95,12 +82,10 @@ for l in sat:
     sub2.axvline(time[l],color="k",linestyle="--",linewidth=0.7)
 
 sub1.set_ylim(1e-6,2e-1)
-
 sub1.set_xlim(time[0],time[-1])
 
 sub1.set_xlabel(r"$t\ [\omega_{pi}^{-1}]$")
 sub2.set_xlabel(r"$t\ [\omega_{pi}^{-1}]$")
-# sub1.semilogy(time,np.gradient(avwB),color="r")
 
 sub1.set_title(r"$Protons$")
 sub2.set_title(r"$Electrons$")
