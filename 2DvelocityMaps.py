@@ -49,16 +49,29 @@ def plot2D(data,time,extent,ind,figPath):
     sub1.set_xlabel(r'$x\ [c/\omega_{pi}]$')
     sub1.set_ylabel(r'$y\ [c/\omega_{pi}]$')
 
-    # sub1.text(extent[1]/2+5,extent[1]+5,r"$u\ [c]$")
-    # txt = sub1.text(extent[0],extent[1]+5,r"$t=%.1f\ [\omega_{pe}^{-1}]$"%time[0])
+    sub1.text(1, 1.05,
+              r"$U_{eL}\ [c]$",
+              horizontalalignment='right',
+              verticalalignment='bottom',
+              transform=sub1.transAxes)
+
+    txt = sub1.text(0.35, 1.05,
+                    r"$t=%.1f\ [\omega_{pe}^{-1}]$"%time[0],
+                    horizontalalignment='right',
+                    verticalalignment='bottom',
+                    transform=sub1.transAxes)
 
     #needed to avoid change of figsize
     plt.savefig(figPath+"/plot-{i}-time-{t}.png".format(i=0+ind,t=time[0]),dpi="figure")
 
     for i in range(len(time)):
 
-        # Artist.remove(txt)
-        # txt = sub1.text(extent[0],extent[1]+5,r"$t=%.1f\ [\omega_{pe}^{-1}]$"%time[i])
+        Artist.remove(txt)
+        txt = sub1.text(0.35, 1.05,
+                        r"$t=%.1f\ [\omega_{pe}^{-1}]$"%time[i],
+                        horizontalalignment='right',
+                        verticalalignment='bottom',
+                        transform=sub1.transAxes)
 
         im.set_array(data[i,...].T)
 
@@ -68,7 +81,7 @@ def plot2D(data,time,extent,ind,figPath):
 
 #----------------------------------------------
 run  ="counterStream5"
-o = osiris.Osiris(run,spNorm="iL",nbrCores=6)
+o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
 st = slice(None,None,2)

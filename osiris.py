@@ -16,7 +16,7 @@ import parallel_functions as pf
 class Osiris:
 
     #--------------------------------------------------------------
-    def __init__(self, run, spNorm="", nbrCores=1):
+    def __init__(self, run, spNorm=None, nbrCores=6):
 
         self.path = os.environ.get("OSIRIS_RUN_DIR") + "/" + run
         self.nbrCores = nbrCores
@@ -38,20 +38,23 @@ class Osiris:
 
             for l in f.readlines():
 
-                #remove bracket, spaces, line breaks
-                l = l.replace("{","").replace(" ","").replace("\n","")
+                #remove brackets, spaces, line breaks
+                l = l.replace("{","").replace("}","").replace(" ","").replace("\n","")
 
-                #skip comment lines
-                if l[0]=="!": continue
+                #skip empty and commented lines
+                if l=="" or l[0]=="!": continue
 
                 #find needed categories
                 if (l=="diag_emf") or (l=="diag_species"): cat = l
 
                 #filter for numerical inputs
                 elif "=" in l:
-                    #remove d0 notation, quote and last comma
-                    l  = l.replace("d0","").replace('"','')[:-1]
-                    value = l[l.index("=")+1:]
+                    #remove d0 notation and quote
+                    l  = l.replace("d0","").replace('"','')
+
+                    #handle comments next to value, remove last comma
+                    try:               value = l[l.index("=")+1:l.index("!")-1]
+                    except ValueError: value = l[l.index("=")+1:-1]
 
                     #---------------------------
                     #grid parameters
@@ -63,7 +66,7 @@ class Osiris:
                         elif len(R)==2:
                             self.Ny   = R[1]
                             self.grid = (self.Nx,self.Ny)
-                        else:
+                        elif len(R)==3:
                             self.Ny   = R[1]
                             self.Nz   = R[2]
                             self.grid = (self.Nx,self.Ny,self.Nz)
@@ -152,27 +155,26 @@ class Osiris:
 
         if   direction == "x":
             delta = (self.xmax - self.xmin) / self.Nx
-            axis = np.linspace(self.xmin,self.Nx*delta,self.Nx)
+            axis = np.linspace(self.xmin,(self.Nx-1)*delta,self.Nx)
 
         elif direction == "y":
             delta = (self.ymax - self.ymin) / self.Ny
-            axis = np.linspace(self.ymin,self.Ny*delta,self.Ny)
+            axis = np.linspace(self.ymin,(self.Ny-1)*delta,self.Ny)
 
         elif direction == "z":
             delta = (self.zmax - self.zmin) / self.Nz
-            axis = np.linspace(self.zmin,self.Nz*delta,self.Nz)
+            axis = np.linspace(self.zmin,(self.Nz-1)*delta,self.Nz)
 
-        if self.spNorm!="": axis /= np.sqrt(self.getRatioQM(self.spNorm))
-
+        if self.spNorm!=None: axis /= np.sqrt(self.getRatioQM(self.spNorm))
 
         return axis
 
 
     #--------------------------------------------------------------
-    def getTimeAxis(self, species="", ene=False, raw=False):
+    def getTimeAxis(self, species=None, ene=False, raw=False):
 
         #species time
-        if species!="":
+        if species!=None:
             try: species_index = np.where(self.species_name==species)[0][0]
             except: sys.exit("Unknown species '"+species+"'")
 
@@ -209,22 +211,14 @@ class Osiris:
 
                 time = np.linspace(self.tmin,(N-1)*delta,N)
 
-        if self.spNorm!="": time /= np.sqrt(self.getRatioQM(self.spNorm))
+        if self.spNorm!=None: time /= np.sqrt(self.getRatioQM(self.spNorm))
 
         return time.round(7)
 
 
-    #--------------------------------------------------------------
-    def getAxisFourier(self,axis):
-
-        axisF = np.fft.rfftfreq(len(axis),axis[1]-axis[0])*2*np.pi
-
-        return axisF[1], axisF[-1], axisF
-
-
 
     #--------------------------------------------------------------
-    def getOnGrid(self, time, dataPath, species=""):
+    def getOnGrid(self, time, dataPath, species):
 
         #handle list or single time
         try:    N = len(time)
@@ -239,14 +233,14 @@ class Osiris:
         #parallel reading of data
         it = (dataPath + p for p in np.take(sorted(os.listdir(dataPath)), index))
 
-        G = pf.parallel(pf.readData, it, self.nbrCores)
+        G = pf.parallel(pf.readData, it, self.nbrCores, plot=False)
 
         return G
 
 
 
     #--------------------------------------------------------------
-    def getEnergyIntegr(self, time, qty, species=""):
+    def getEnergyIntegr(self, time, qty, species=None):
 
         #handle list or single time
         try:    N = len(time)
@@ -277,14 +271,6 @@ class Osiris:
 
             ene = np.loadtxt(self.path+"/HIST/par"+sIndex+"_ene",skiprows=2,usecols=3)[cond]
 
-        elif qty=="T":
-            sIndex = np.nonzero(np.in1d(self.species_name,species))[0][0] + 1
-            #make sure padding is correct
-            if sIndex < 10: sIndex = "0" + str(sIndex)
-            else          : sIndex = str(sIndex)
-
-            ene = np.loadtxt(self.path+"/HIST/par"+sIndex+"_temp",skiprows=1,usecols=3)[cond]
-
         return ene
 
 
@@ -309,7 +295,7 @@ class Osiris:
 
         dataPath = self.path+"/MS/FLD/"+key+"/"
 
-        B = self.getOnGrid(time,dataPath)
+        B = self.getOnGrid(time,dataPath,species=None)
 
         return B
 
@@ -323,7 +309,7 @@ class Osiris:
 
         dataPath = self.path+"/MS/FLD/"+key+"/"
 
-        E = self.getOnGrid(time,dataPath)
+        E = self.getOnGrid(time,dataPath,species=None)
 
         return E
 
@@ -415,6 +401,18 @@ class Osiris:
         Enrgy = self.getOnGrid(time,dataPath,species)
 
         return Enrgy
+
+
+    #--------------------------------------------------------------
+    def getTemp(self, time, species, comp):
+
+        key = "T"+comp
+
+        dataPath = self.path+"/MS/UDIST/"+species+"/"+key+"/"
+
+        T = self.getOnGrid(time,dataPath,species)
+
+        return T
 
 
     #--------------------------------------------------------------

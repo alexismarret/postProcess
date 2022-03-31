@@ -20,7 +20,7 @@ plt.rcParams.update(params)
 # plt.close("all")
 
 #----------------------------------------------
-run = "counterStream5"
+run = "counterStream6"
 
 o = osiris.Osiris(run,spNorm="iL")
 

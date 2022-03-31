@@ -5,7 +5,7 @@ Created on Thu Mar 24 13:11:45 2022
 
 @author: alexis
 """
-a
+
 
 #----------------------------------------------
 import osiris
@@ -37,7 +37,7 @@ def plot2D(data,time,extent,ind,figPath):
                    extent=extent,origin="lower",
                    aspect=1,
                    cmap="bwr",
-                   vmin = -0.2, vmax = 0.2,
+                   vmin = -0.05, vmax = 0.05,
                    interpolation="None")
 
     divider = make_axes_locatable(sub1)
@@ -50,16 +50,29 @@ def plot2D(data,time,extent,ind,figPath):
     sub1.set_xlabel(r'$x\ [c/\omega_{pi}]$')
     sub1.set_ylabel(r'$y\ [c/\omega_{pi}]$')
 
-    # sub1.text(extent[1]/2+5,extent[1]+5,r"$u\ [c]$")
-    # txt = sub1.text(extent[0],extent[1]+5,r"$t=%.1f\ [\omega_{pe}^{-1}]$"%time[0])
+    sub1.text(1, 1.05,
+              r"$J\ [en_ec]$",
+              horizontalalignment='right',
+              verticalalignment='bottom',
+              transform=sub1.transAxes)
+
+    txt = sub1.text(0.35, 1.05,
+                    r"$t=%.1f\ [\omega_{pi}^{-1}]$"%time[0],
+                    horizontalalignment='right',
+                    verticalalignment='bottom',
+                    transform=sub1.transAxes)
 
     #needed to avoid change of figsize
     plt.savefig(figPath+"/plot-{i}-time-{t}.png".format(i=0+ind,t=time[0]),dpi="figure")
 
     for i in range(len(time)):
 
-        # Artist.remove(txt)
-        # txt = sub1.text(extent[0],extent[1]+5,r"$t=%.1f\ [\omega_{pe}^{-1}]$"%time[i])
+        Artist.remove(txt)
+        txt = sub1.text(0.35, 1.05,
+                        r"$t=%.1f\ [\omega_{pi}^{-1}]$"%time[i],
+                        horizontalalignment='right',
+                        verticalalignment='bottom',
+                        transform=sub1.transAxes)
 
         im.set_array(data[i,...].T)
 
@@ -69,8 +82,8 @@ def plot2D(data,time,extent,ind,figPath):
 
 
 #----------------------------------------------
-run  ="counterStream5"
-o = osiris.Osiris(run,spNorm="iL",nbrCores=6)
+run  ="counterStream6"
+o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
 st = slice(None,None,1)
@@ -79,37 +92,39 @@ y     = o.getAxis("y")[sx]
 time = o.getTimeAxis("eL")[st]
 
 #----------------------------------------------
-jeX = o.getCurrent(time, "eL", "x")
-jiX = o.getCurrent(time, "iL", "x")
 
-jeY = o.getCurrent(time, "eL", "y")
-jiY = o.getCurrent(time, "iL", "y")
+jTotX = (o.getCurrent(time, "eL", "x")+
+         o.getCurrent(time, "eR", "x")+
+         o.getCurrent(time, "iL", "x")+
+         o.getCurrent(time, "iR", "x"))
 
-jeZ = o.getCurrent(time, "eL", "z")
-jiZ = o.getCurrent(time, "iL", "z")
+jTotY = (o.getCurrent(time, "eL", "y")+
+         o.getCurrent(time, "eR", "y")+
+         o.getCurrent(time, "iL", "y")+
+         o.getCurrent(time, "iR", "y"))
 
 #----------------------------------------------
 stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
 extent=(min(x),max(x),min(y),max(y))
 
 #----------------------------------------------
-path = o.path+"/plots/jeX"
+path = o.path+"/plots/jTotX"
 o.setup_dir(path)
 
-it = ((jeX  [s[0]:s[1]],
+it = ((jTotX  [s[0]:s[1]],
        time        [s[0]:s[1]],
        extent, s[0], path) for s in stages)
 
-pf.parallel(plot2D, it, o.nbrCores, plot=True)
+# pf.parallel(plot2D, it, o.nbrCores, plot=True)
 
 #----------------------------------------------
-path = o.path+"/plots/jiX"
+path = o.path+"/plots/jTotY"
 o.setup_dir(path)
 
-it = ((jiX  [s[0]:s[1]],
+it = ((jTotY  [s[0]:s[1]],
        time        [s[0]:s[1]],
        extent, s[0], path) for s in stages)
 
-pf.parallel(plot2D, it, o.nbrCores, plot=True)
+# pf.parallel(plot2D, it, o.nbrCores, plot=True)
 
 

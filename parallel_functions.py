@@ -6,15 +6,16 @@ Created on Fri Mar 11 17:41:52 2022
 @author: alexis
 """
 
-import multiprocessing
 import numpy as np
 import h5py
-import time as ti
 from inspect import signature
 import matplotlib.pyplot as plt
-
+from multiprocessing import Pool
+# import multiprocessing.pool as mpp
+from memory_profiler import profile
 
 #--------------------------------------------------------------
+# @profile
 def parallel(function, it, nbrCores, plot=False):
     #evaluates in parallel all the results, not lazy
 
@@ -22,7 +23,7 @@ def parallel(function, it, nbrCores, plot=False):
     if plot: plt.switch_backend('Agg')
 
     #generate pool of workers
-    with multiprocessing.Pool(processes = nbrCores) as pool:
+    with Pool(processes = nbrCores) as pool:
 
         #single argument for function
         if len(signature(function).parameters)==1:
@@ -44,11 +45,10 @@ def parallel(function, it, nbrCores, plot=False):
     #for single output:
     # [list (times), np.array]
 
-    if type(results[1])==tuple:
-        return (np.array(r,copy=False) for r in zip(*results))
+    if type(results[0])==tuple:
+        return (np.asarray(r) for r in zip(*results))
     else:
-        return np.array(results,copy=False)
-
+        return np.asarray(results)
 
 
 #--------------------------------------------------------------
@@ -57,7 +57,7 @@ def readData(dataPath):
     with h5py.File(dataPath,"r") as f:
 
         #data has inverted space axis, need .T
-        return f[list(f.keys())[-1]][()].T  #might be wrong in 3D!
+        return f[list(f.keys())[-1]][()].T #might be wrong in 3D!
 
 
 #--------------------------------------------------------------
@@ -94,19 +94,4 @@ def distrib_task(begin, end, division) :
 
     return jobs
 
-
-"""
-#--------------------------------------------------------------
-def readVector(dataPath1,dataPath2,dataPath3,key):
-
-    with h5py.File(dataPath1,"r") as f1:
-        with h5py.File(dataPath2,"r") as f2:
-            with h5py.File(dataPath3,"r") as f3:
-
-                data = np.array([f1[key+"1"][()],
-                                     f2[key+"2"][()],
-                                     f3[key+"3"][()]],copy=False)
-
-                return np.transpose(data,np.roll(range(len(data.shape)),-1))
-"""
 
