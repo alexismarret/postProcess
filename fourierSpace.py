@@ -82,11 +82,11 @@ def plot2D(data,time,extent,ind,figPath):
     return
 
 #----------------------------------------------
-run  ="counterStream6"
+run  ="counterStream"
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
-st = slice(None,None,1)
+st = slice(None,None,2)
 x    = o.getAxis("x")[sx]
 y    = o.getAxis("y")[sx]
 time = o.getTimeAxis()[st]
@@ -96,27 +96,44 @@ normB = np.sqrt(o.getB(time,"x")**2+
                 o.getB(time,"y")**2+
                 o.getB(time,"z")**2)
 
+normE = np.sqrt(o.getE(time,"x")**2+
+                o.getE(time,"y")**2+
+                o.getE(time,"z")**2)
+
 axis_kX = np.fft.rfftfreq(len(x),x[1]-x[0])[1:] *2*np.pi
 axis_kY = np.fft.rfftfreq(len(y),y[1]-y[0])[1:] *2*np.pi
 
 
-ft2 = np.zeros((len(time),len(x),len(y)))
+ftB = np.zeros((len(time),len(x),len(y)))
+ftE = np.zeros((len(time),len(x),len(y)))
 
-for i in range(len(time)): ft2[i] = np.abs(np.fft.fft2(normB[i]))
+for i in range(len(time)):
+    ftB[i] = np.abs(np.fft.fft2(normB[i]))
+    ftE[i] = np.abs(np.fft.fft2(normE[i]))
 
-ft2 = ft2[:,len(x)//2:,len(y)//2:]
+ftB = ftB[:,len(x)//2:,len(y)//2:]
+ftE = ftE[:,len(x)//2:,len(y)//2:]
 
 stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
 extent=(min(axis_kX),max(axis_kX),min(axis_kY),max(axis_kY))
 
 
 #----------------------------------------------
-path = o.path+"/plots/fft2"
+path = o.path+"/plots/fftB"
 o.setup_dir(path)
 
-it = ((ft2  [s[0]:s[1]],
+it = ((ftB  [s[0]:s[1]],
         time        [s[0]:s[1]],
         extent, s[0], path) for s in stages)
 
 pf.parallel(plot2D, it, o.nbrCores, plot=True)
 
+#----------------------------------------------
+path = o.path+"/plots/fftE"
+o.setup_dir(path)
+
+it = ((ftE  [s[0]:s[1]],
+        time        [s[0]:s[1]],
+        extent, s[0], path) for s in stages)
+
+pf.parallel(plot2D, it, o.nbrCores, plot=True)

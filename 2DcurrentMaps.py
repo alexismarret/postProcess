@@ -37,7 +37,7 @@ def plot2D(data,time,extent,ind,figPath):
                    extent=extent,origin="lower",
                    aspect=1,
                    cmap="bwr",
-                   vmin = -0.05, vmax = 0.05,
+                   vmin = -0.1, vmax = 0.1,
                    interpolation="None")
 
     divider = make_axes_locatable(sub1)
@@ -82,30 +82,27 @@ def plot2D(data,time,extent,ind,figPath):
 
 
 #----------------------------------------------
-run  ="counterStream6"
+run  ="counterStream"
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
-st = slice(None,None,1)
+st = slice(None,None,5)
 x     = o.getAxis("x")[sx]
 y     = o.getAxis("y")[sx]
-time = o.getTimeAxis("eL")[st]
+time = o.getTimeAxis("iL")[st]
 
 #----------------------------------------------
-
+jiLx = o.getCurrent(time, "iL", "x")
 jTotX = (o.getCurrent(time, "eL", "x")+
          o.getCurrent(time, "eR", "x")+
          o.getCurrent(time, "iL", "x")+
          o.getCurrent(time, "iR", "x"))
 
-jTotY = (o.getCurrent(time, "eL", "y")+
-         o.getCurrent(time, "eR", "y")+
-         o.getCurrent(time, "iL", "y")+
-         o.getCurrent(time, "iR", "y"))
 
 #----------------------------------------------
 stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
 extent=(min(x),max(x),min(y),max(y))
+
 
 #----------------------------------------------
 path = o.path+"/plots/jTotX"
@@ -115,16 +112,21 @@ it = ((jTotX  [s[0]:s[1]],
        time        [s[0]:s[1]],
        extent, s[0], path) for s in stages)
 
-# pf.parallel(plot2D, it, o.nbrCores, plot=True)
+pf.parallel(plot2D, it, o.nbrCores, plot=True)
+
+
+
+
+mask = o.locFilament(time)
 
 #----------------------------------------------
-path = o.path+"/plots/jTotY"
+path = o.path+"/plots/jTotX_mask"
 o.setup_dir(path)
 
-it = ((jTotY  [s[0]:s[1]],
+jTotX_masked = np.ma.masked_array(jTotX,mask= mask,copy=False)
+
+it = ((jTotX_masked  [s[0]:s[1]],
        time        [s[0]:s[1]],
        extent, s[0], path) for s in stages)
 
-# pf.parallel(plot2D, it, o.nbrCores, plot=True)
-
-
+pf.parallel(plot2D, it, o.nbrCores, plot=True)

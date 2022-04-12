@@ -16,7 +16,7 @@ import parallel_functions as pf
 class Osiris:
 
     #--------------------------------------------------------------
-    def __init__(self, run, spNorm=None, nbrCores=5):
+    def __init__(self, run, spNorm=None, nbrCores=6):
 
         self.path = os.environ.get("OSIRIS_RUN_DIR") + "/" + run
         self.nbrCores = nbrCores
@@ -24,13 +24,22 @@ class Osiris:
 
         self.parseInput()
 
+        self.cellHyperVolume = np.prod((self.gridPosMax-self.gridPosMin)/self.grid)
+        self.boxHyperVolume  = np.prod (self.gridPosMax-self.gridPosMin)
+
         return
+
 
     #--------------------------------------------------------------
     def parseInput(self):
 
+        try:
+            input_file = glob.glob(self.path+"/*.in")[0]
+        except IndexError:
+            sys.exit("Cannot find input file in '"+self.path+"'")
+
         #open input file
-        with open(glob.glob(self.path+"/*.in")[0]) as f:
+        with open( input_file) as f:
 
             Ns=0
             s=0
@@ -45,7 +54,9 @@ class Osiris:
                 if l=="" or l[0]=="!": continue
 
                 #find needed categories
-                if (l=="diag_emf") or (l=="diag_species"): cat = l
+                if ((l=="diag_emf")     or
+                    (l=="diag_species") or
+                    (l=="diag_current")): cat = l
 
                 #filter for numerical inputs
                 elif "=" in l:
@@ -59,35 +70,13 @@ class Osiris:
                     #---------------------------
                     #grid parameters
                     if "nx_p" in l:
-                        R = np.int_(value.split(","))
-                        self.Nx = R[0]
-                        if len(R)==1:
-                            self.grid = (self.Nx,)
-                        elif len(R)==2:
-                            self.Ny   = R[1]
-                            self.grid = (self.Nx,self.Ny)
-                        elif len(R)==3:
-                            self.Ny   = R[1]
-                            self.Nz   = R[2]
-                            self.grid = (self.Nx,self.Ny,self.Nz)
+                        self.grid = np.int_(value.split(","))
 
                     elif "xmin" in l:
-                        R = np.float_(value.split(","))
-                        self.xmin = R[0]
-                        if len(R)==2:
-                            self.ymin = R[1]
-                        elif len(R)==3:
-                            self.ymin = R[1]
-                            self.zmin = R[2]
+                        self.gridPosMin = np.float_(value.split(","))
 
                     elif "xmax" in l:
-                        R = np.float_(value.split(","))
-                        self.xmax = R[0]
-                        if len(R)==2:
-                            self.ymax = R[1]
-                        elif len(R)==3:
-                            self.ymax = R[1]
-                            self.zmax = R[2]
+                        self.gridPosMax = np.float_(value.split(","))
 
                     #---------------------------
                     #time parameters
@@ -119,7 +108,8 @@ class Osiris:
                     elif ("num_species=" in l) or ("num_cathode=" in l):
                         Ns+=int(value)
                         self.ndump_facP     = np.zeros(Ns)
-                        self.ndump_fac_rawP = np.zeros(Ns)
+                        self.ndump_fac_ene  = np.zeros(Ns)
+                        self.ndump_fac_raw  = np.zeros(Ns)
                         self.species_name   = np.empty(Ns, dtype='object')
                         self.rqm            = np.zeros(Ns)
 
@@ -134,8 +124,14 @@ class Osiris:
                     elif (cat=="diag_species") and ("ndump_fac=" in l):
                         self.ndump_facP[s] = int(value)
 
+                    elif (cat=="diag_species") and ("ndump_fac_ene=" in l):
+                        self.ndump_fac_ene[s] = int(value)
+
                     elif (cat=="diag_species") and ("ndump_fac_raw=" in l):
-                        self.ndump_fac_rawP[s] = int(value)
+                        self.ndump_fac_raw[s] = int(value)
+
+                    elif (cat=="diag_current") and ("ndump_fac=" in l):
+                        self.ndump_facC = int(value)
 
         return
 
@@ -145,7 +141,7 @@ class Osiris:
 
         index=np.nonzero(np.in1d(self.species_name,species))[0]
 
-        rqm = self.rqm[index]
+        rqm = self.rqm[index][0]
 
         return rqm
 
@@ -153,17 +149,12 @@ class Osiris:
     #--------------------------------------------------------------
     def getAxis(self, direction):
 
-        if   direction == "x":
-            delta = (self.xmax - self.xmin) / self.Nx
-            axis = np.linspace(self.xmin,(self.Nx-1)*delta,self.Nx)
+        if   direction == "x": i=0
+        elif direction == "y": i=1
+        elif direction == "z": i=2
 
-        elif direction == "y":
-            delta = (self.ymax - self.ymin) / self.Ny
-            axis = np.linspace(self.ymin,(self.Ny-1)*delta,self.Ny)
-
-        elif direction == "z":
-            delta = (self.zmax - self.zmin) / self.Nz
-            axis = np.linspace(self.zmin,(self.Nz-1)*delta,self.Nz)
+        delta = (self.gridPosMax[i] - self.gridPosMin[i]) / self.grid[i]
+        axis = np.linspace(self.gridPosMin[i],(self.grid[i]-1)*delta,self.grid[i])
 
         if self.spNorm!=None: axis /= np.sqrt(self.getRatioQM(self.spNorm))
 
@@ -179,29 +170,24 @@ class Osiris:
             except: sys.exit("Unknown species '"+species+"'")
 
             if ene:
-                #retrieve number of dumps from any of the folders in /HIST that is not fld_ene
-                file = [x for x in os.listdir(self.path+"/HIST/") if x not in "fld_ene"][0]
-
-                time = np.loadtxt(self.path+"/HIST/"+file,skiprows=2,usecols=1)
+                N = len(os.listdir(self.path+"/MS/RAW/"+species))
+                delta = self.dt*self.ndump*self.ndump_fac_ene[species_index]
 
             elif raw:
                 N = len(os.listdir(self.path+"/MS/RAW/"+species))
-                delta = self.dt*self.ndump*self.ndump_fac_rawP[species_index]
-
-                time = np.linspace(self.tmin,(N-1)*delta,N)
+                delta = self.dt*self.ndump*self.ndump_fac_raw[species_index]
 
             else:
                 #retrieve number of dumps from any of the folders in /DENSITY
-                N = len(os.listdir(self.path+"/MS/DENSITY/"+species+"/"+
-                                   os.listdir(self.path+"/MS/DENSITY/"+species)[0]))
+                N = len(os.listdir(self.path+"/MS/UDIST/"+species+"/"+
+                                   os.listdir(self.path+"/MS/UDIST/"+species)[0]))
                 delta = self.dt*self.ndump*self.ndump_facP[species_index]
-
-                time = np.linspace(self.tmin,(N-1)*delta,N)
 
         #fields time
         else:
             if ene:
-                time = np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=1)
+                N = len(os.listdir(self.path+"/MS/RAW/"+species))
+                delta = self.dt*self.ndump*self.ndump_fac_ene_int
 
             else:
                 #retrieve number of dumps from any of the folders in /FLD
@@ -209,7 +195,7 @@ class Osiris:
                                    os.listdir(self.path+"/MS/FLD")[0]))
                 delta = self.dt*self.ndump*self.ndump_facF
 
-                time = np.linspace(self.tmin,(N-1)*delta,N)
+        time = np.linspace(self.tmin,(N-1)*delta,N)
 
         if self.spNorm!=None: time /= np.sqrt(self.getRatioQM(self.spNorm))
 
@@ -246,21 +232,22 @@ class Osiris:
         try:    N = len(time)
         except: time = [time]; N = 1
 
-        cond=np.in1d(self.getTimeAxis(species,ene=True),time)
+        cond=np.in1d(self.getTimeAxis(species),time)
 
         #check if requested times exist
         if len(np.nonzero(cond)[0])!=N: sys.exit("Unknown time for '"+qty+"'")
 
         #energy per field component
         if qty=="B":
-            ene = np.array([np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=2)[cond],
-                            np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=3)[cond],
-                            np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=4)[cond]],copy=False).T
+            ene = np.asarray([np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=2)[cond],
+                              np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=3)[cond],
+                              np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=4)[cond]]).T
+
 
         elif qty=="E":
-            ene = np.array([np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=5)[cond],
-                            np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=6)[cond],
-                            np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=7)[cond]],copy=False).T
+            ene = np.asarray([np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=5)[cond],
+                              np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=6)[cond],
+                              np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=7)[cond]]).T
 
         #kinetic energy
         elif qty=="kin":
@@ -271,7 +258,7 @@ class Osiris:
 
             ene = np.loadtxt(self.path+"/HIST/par"+sIndex+"_ene",skiprows=2,usecols=3)[cond]
 
-        return ene
+        return ene / self.boxHyperVolume
 
 
     #--------------------------------------------------------------
@@ -343,10 +330,20 @@ class Osiris:
 
 
     #--------------------------------------------------------------
+    def getVclassical(self, time, species, comp):
+
+        Ufluid = self.getUfluid(time, species, comp)
+
+        Vclassical = np.sqrt(1./(1./Ufluid**2+1.))
+
+        return Vclassical
+
+
+    #--------------------------------------------------------------
     def getCharge(self, time, species, cellAv=False):
 
         """
-        Get species charge density C = n*q
+        Get species charge density C = n*q*gamma
         cellAv: moment obtained from macroparticles in the cell, no interpolation
         """
 
@@ -363,7 +360,7 @@ class Osiris:
     def getMass(self, time, species, cellAv=False):
 
         """
-        Get species mass density M = n*m
+        Get species mass density M = n*m*gamma
         """
 
         key = "m"
@@ -449,3 +446,22 @@ class Osiris:
             os.makedirs(path)
 
         return
+
+
+    #--------------------------------------------------------------
+    def locFilament(self, time, fac=2):
+
+        j = (self.getCurrent(time, "eL", "x")+
+             self.getCurrent(time, "eR", "x")+
+             self.getCurrent(time, "iL", "x")+
+             self.getCurrent(time, "iR", "x"))
+
+        #filament defined as j > std(j) initially (except first time step numerical)
+        K = np.std(j[1]) * fac
+
+        #yield true when value is NOT in filament
+        mask = np.ma.getmask(np.ma.masked_where(np.abs(j)<K,j,copy=False))
+
+        return mask
+
+

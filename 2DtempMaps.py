@@ -35,7 +35,7 @@ def plot2D(data,time,extent,ind,figPath):
     im=sub1.imshow(data[0,...].T,
                    extent=extent,origin="lower",
                    aspect=1,
-                   cmap="bwr",norm=LogNorm(vmin = 1e-2, vmax = 1e2),
+                   cmap="bwr",norm=LogNorm(vmin = 1e-1, vmax = 1e1),
                    interpolation="None")
 
     divider = make_axes_locatable(sub1)
@@ -80,21 +80,21 @@ def plot2D(data,time,extent,ind,figPath):
 
 
 #----------------------------------------------
-run  ="counterStream5"
+run  ="counterStream7"
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
 st = slice(None,None,1)
 x     = o.getAxis("x")[sx]
 y     = o.getAxis("y")[sx]
-time = o.getTimeAxis("eL")[st]
+time = o.getTimeAxis("iL")[st]
 
 mu = np.sqrt(o.getRatioQM("iL"))
 
 #----------------------------------------------
-rX = (o.getUth(time, "eL", "x") / (o.getUth(time, "iL", "x") * mu))**2
-rY = (o.getUth(time, "eL", "y") / (o.getUth(time, "iL", "y") * mu))**2
-rZ = (o.getUth(time, "eL", "z") / (o.getUth(time, "iL", "z") * mu))**2
+rTiX= (o.getUth(time, "iL", "x") / (o.getUth(time, "iR", "x")))**2
+# rY = (o.getUth(time, "eL", "y") / (o.getUth(time, "iL", "y") * mu))**2
+# rZ = (o.getUth(time, "eL", "z") / (o.getUth(time, "iL", "z") * mu))**2
 
 # TeX = (o.getUth(time, "eL", "x"))**2
 # TiX = (o.getUth(time, "iL", "x") * mu)**2
@@ -110,10 +110,10 @@ stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
 extent=(min(x),max(x),min(y),max(y))
 
 #----------------------------------------------
-path = o.path+"/plots/Te_Ti_x"
+path = o.path+"/plots/rTiX"
 o.setup_dir(path)
 
-it = ((rX  [s[0]:s[1]],
+it = ((rTiX  [s[0]:s[1]],
         time        [s[0]:s[1]],
         extent, s[0], path) for s in stages)
 
@@ -121,23 +121,5 @@ it = ((rX  [s[0]:s[1]],
 pf.parallel(plot2D, it, o.nbrCores, plot=True)
 
 
-#----------------------------------------------
-path = o.path+"/plots/Te_Ti_y"
-o.setup_dir(path)
 
-it = ((rY  [s[0]:s[1]],
-       time        [s[0]:s[1]],
-       extent, s[0], path) for s in stages)
-
-pf.parallel(plot2D, it, o.nbrCores, plot=True)
-
-#----------------------------------------------
-path = o.path+"/plots/Te_Ti_z"
-o.setup_dir(path)
-
-it = ((rZ  [s[0]:s[1]],
-       time        [s[0]:s[1]],
-       extent, s[0], path) for s in stages)
-
-pf.parallel(plot2D, it, o.nbrCores, plot=True)
 

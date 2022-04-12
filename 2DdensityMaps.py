@@ -37,7 +37,7 @@ def plot2D(data,time,extent,ind,figPath):
                    extent=extent,origin="lower",
                    aspect=1,
                    cmap="bwr",
-                   vmin = 0.1, vmax = 1.5,
+                   norm=LogNorm(vmin = 1e-1, vmax = 1e1),
                    interpolation="None")
 
     divider = make_axes_locatable(sub1)
@@ -51,7 +51,7 @@ def plot2D(data,time,extent,ind,figPath):
     sub1.set_ylabel(r'$y\ [c/\omega_{pi}]$')
 
     sub1.text(1, 1.05,
-              r"$n_e\ [(c/\omega_{pe})^{-3}]$",
+              r"$n_i\ [(c/\omega_{pe})^{-3}]$",
               horizontalalignment='right',
               verticalalignment='bottom',
               transform=sub1.transAxes)
@@ -81,63 +81,29 @@ def plot2D(data,time,extent,ind,figPath):
     return
 
 #----------------------------------------------
-run  ="counterStream5"
+run  ="counterStream7"
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
-st = slice(None,None,2)
+st = slice(None,None,1)
 x    = o.getAxis("x")[sx]
 y    = o.getAxis("y")[sx]
 time = o.getTimeAxis("eL")[st]
 
 #----------------------------------------------
-neL = o.getCharge(time, "eL")*-1
-niL = o.getCharge(time, "iL")
-# neR = o.getCharge(time, "eR")*-1
-# niR = o.getCharge(time, "iR")
+rI = o.getCharge(time, "iL") / o.getCharge(time, "iR")
 
 #----------------------------------------------
 stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
 extent=(min(x),max(x),min(y),max(y))
 
 #----------------------------------------------
-path = o.path+"/plots/neL"
+path = o.path+"/plots/rI"
 o.setup_dir(path)
 
-it = ((neL    [s[0]:s[1]],
+it = ((rI    [s[0]:s[1]],
         time[s[0]:s[1]],
         extent, s[0], path) for s in stages)
 
 pf.parallel(plot2D, it, o.nbrCores, plot=True)
 
-#----------------------------------------------
-path = o.path+"/plots/niL"
-o.setup_dir(path)
-
-it = ((niL    [s[0]:s[1]],
-        time[s[0]:s[1]],
-        extent, s[0], path) for s in stages)
-
-pf.parallel(plot2D, it, o.nbrCores, plot=True)
-
-"""
-#----------------------------------------------
-path = o.path+"/plots/neR"
-o.setup_dir(path)
-
-it = ((neR    [s[0]:s[1]],
-        time[s[0]:s[1]],
-        extent, s[0], path) for s in stages)
-
-pf.parallel(plot2D, it, o.nbrCores, plot=True)
-
-#----------------------------------------------
-path = o.path+"/plots/niR"
-o.setup_dir(path)
-
-it = ((niR    [s[0]:s[1]],
-        time[s[0]:s[1]],
-        extent, s[0], path) for s in stages)
-
-pf.parallel(plot2D, it, o.nbrCores, plot=True)
-"""
