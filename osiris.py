@@ -204,7 +204,7 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def getOnGrid(self, time, dataPath, species):
+    def getOnGrid(self, time, dataPath, species, parallel):
 
         #handle list or single time
         try:    N = len(time)
@@ -216,10 +216,17 @@ class Osiris:
         #check if requested times exist
         if len(index)!=N: sys.exit("Unknown time for '"+dataPath+"'")
 
-        #parallel reading of data
         it = (dataPath + p for p in np.take(sorted(os.listdir(dataPath)), index))
 
-        G = pf.parallel(pf.readData, it, self.nbrCores, plot=False)
+        #parallel reading of data
+        if parallel:
+            G = pf.parallel(pf.readData, it, self.nbrCores, plot=False)
+
+        #single value read
+        else:
+            it = list(it)
+            if len(it)!=1: sys.exit("Wrong data path for '"+dataPath+"'")
+            G = pf.readData(it)
 
         return G
 
@@ -274,7 +281,7 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def getB(self, time, comp):
+    def getB(self, time, comp, parallel=True):
 
         if   comp=="x": key = "b1"
         elif comp=="y": key = "b2"
@@ -282,13 +289,13 @@ class Osiris:
 
         dataPath = self.path+"/MS/FLD/"+key+"/"
 
-        B = self.getOnGrid(time,dataPath,species=None)
+        B = self.getOnGrid(time,dataPath,None,parallel)
 
         return B
 
 
     #--------------------------------------------------------------
-    def getE(self, time, comp):
+    def getE(self, time, comp, parallel=True):
 
         if   comp=="x": key = "e1"
         elif comp=="y": key = "e2"
@@ -296,13 +303,13 @@ class Osiris:
 
         dataPath = self.path+"/MS/FLD/"+key+"/"
 
-        E = self.getOnGrid(time,dataPath,species=None)
+        E = self.getOnGrid(time,dataPath,None,parallel)
 
         return E
 
 
     #--------------------------------------------------------------
-    def getUfluid(self, time, species, comp):
+    def getUfluid(self, time, species, comp, parallel=True):
 
         if   comp=="x": key = "ufl1"
         elif comp=="y": key = "ufl2"
@@ -310,13 +317,13 @@ class Osiris:
 
         dataPath = self.path+"/MS/UDIST/"+species+"/"+key+"/"
 
-        Ufluid = self.getOnGrid(time,dataPath,species)
+        Ufluid = self.getOnGrid(time,dataPath,species,parallel)
 
         return Ufluid
 
 
     #--------------------------------------------------------------
-    def getUth(self, time, species, comp):
+    def getUth(self, time, species, comp, parallel=True):
 
         if   comp=="x": key = "uth1"
         elif comp=="y": key = "uth2"
@@ -324,15 +331,15 @@ class Osiris:
 
         dataPath = self.path+"/MS/UDIST/"+species+"/"+key+"/"
 
-        Uth = self.getOnGrid(time,dataPath,species)
+        Uth = self.getOnGrid(time,dataPath,species,parallel)
 
         return Uth
 
 
     #--------------------------------------------------------------
-    def getVclassical(self, time, species, comp):
+    def getVclassical(self, time, species, comp, parallel=True):
 
-        Ufluid = self.getUfluid(time, species, comp)
+        Ufluid = self.getUfluid(time,species,comp,parallel)
 
         Vclassical = np.sqrt(1./(1./Ufluid**2+1.))
 
@@ -340,7 +347,7 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def getCharge(self, time, species, cellAv=False):
+    def getCharge(self, time, species, cellAv=False, parallel=True):
 
         """
         Get species charge density C = n*q*gamma
@@ -351,13 +358,13 @@ class Osiris:
         if cellAv: dataPath = self.path+"/MS/CELL_AVG/"+species+"/"+key+"/"
         else:      dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
 
-        Chr = self.getOnGrid(time,dataPath,species)
+        Chr = self.getOnGrid(time,dataPath,species,parallel)
 
         return Chr
 
 
     #--------------------------------------------------------------
-    def getMass(self, time, species, cellAv=False):
+    def getMass(self, time, species, cellAv=False, parallel=True):
 
         """
         Get species mass density M = n*m*gamma
@@ -367,13 +374,13 @@ class Osiris:
         if cellAv: dataPath = self.path+"/MS/CELL_AVG/"+species+"/"+key+"/"
         else:      dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
 
-        M = self.getOnGrid(time,dataPath,species)
+        M = self.getOnGrid(time,dataPath,species,parallel)
 
         return M
 
 
     #--------------------------------------------------------------
-    def getCurrent(self, time, species, comp, cellAv=False):
+    def getCurrent(self, time, species, comp, cellAv=False, parallel=True):
 
         if   comp=="x": key = "j1"
         elif comp=="y": key = "j2"
@@ -382,38 +389,38 @@ class Osiris:
         if cellAv: dataPath = self.path+"/MS/CELL_AVG/"+species+"/"+key+"/"
         else:      dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
 
-        Cur = self.getOnGrid(time,dataPath,species)
+        Cur = self.getOnGrid(time,dataPath,species,parallel)
 
         return Cur
 
 
     #--------------------------------------------------------------
     #get species kinetic energy density
-    def getKinEnergy(self, time, species, cellAv=False):
+    def getKinEnergy(self, time, species, cellAv=False, parallel=True):
 
         key = "ene"
         if cellAv: dataPath = self.path+"/MS/CELL_AVG/"+species+"/"+key+"/"
         else:      dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
 
-        Enrgy = self.getOnGrid(time,dataPath,species)
+        Enrgy = self.getOnGrid(time,dataPath,species,parallel)
 
         return Enrgy
 
 
     #--------------------------------------------------------------
-    def getTemp(self, time, species, comp):
+    def getTemp(self, time, species, comp, parallel=True):
 
         key = "T"+comp
 
         dataPath = self.path+"/MS/UDIST/"+species+"/"+key+"/"
 
-        T = self.getOnGrid(time,dataPath,species)
+        T = self.getOnGrid(time,dataPath,species,parallel)
 
         return T
 
 
     #--------------------------------------------------------------
-    def getPhaseSpace(self, time, species, direction, comp):
+    def getPhaseSpace(self, time, species, direction, comp, parallel=True):
 
         if    direction=="x": l = "x1"
         elif  direction=="y": l = "x2"
@@ -426,7 +433,7 @@ class Osiris:
 
         dataPath = self.path+"/MS/PHA/"+p+l+"/"+species+"/"
 
-        Pha = self.getOnGrid(time,dataPath,species)
+        Pha = self.getOnGrid(time,dataPath,species,parallel)
 
         return Pha
 

@@ -82,17 +82,17 @@ def plot2D(data,time,extent,ind,figPath):
 
 
 #----------------------------------------------
-run  ="counterStream"
+run  ="counterStreamFast"
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
-st = slice(None,None,5)
+st = slice(None,None,1)
 x     = o.getAxis("x")[sx]
 y     = o.getAxis("y")[sx]
 time = o.getTimeAxis("iL")[st]
 
 #----------------------------------------------
-jiLx = o.getCurrent(time, "iL", "x")
+# jiLx = o.getCurrent(time, "iL", "x")
 jTotX = (o.getCurrent(time, "eL", "x")+
          o.getCurrent(time, "eR", "x")+
          o.getCurrent(time, "iL", "x")+

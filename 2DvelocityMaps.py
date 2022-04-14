@@ -80,11 +80,11 @@ def plot2D(data,time,extent,ind,figPath):
     return
 
 #----------------------------------------------
-run  ="counterStream5"
+run  ="counterStreamFast"
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
-st = slice(None,None,2)
+st = slice(None,None,1)
 x    = o.getAxis("x")[sx]
 y    = o.getAxis("y")[sx]
 time = o.getTimeAxis("eL")[st]
@@ -92,6 +92,9 @@ time = o.getTimeAxis("eL")[st]
 #----------------------------------------------
 UeL = o.getUfluid(time, "eL","y")
 UiL = o.getUfluid(time, "iL","y")
+
+UeR = o.getUfluid(time, "eR","y")
+UiR = o.getUfluid(time, "iR","y")
 
 #----------------------------------------------
 stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
@@ -112,6 +115,26 @@ path = o.path+"/plots/UiL"
 o.setup_dir(path)
 
 it = (((UiL)    [s[0]:s[1]],
+        time[s[0]:s[1]],
+        extent, s[0], path) for s in stages)
+
+pf.parallel(plot2D, it, o.nbrCores, plot=True)
+
+#----------------------------------------------
+path = o.path+"/plots/UeR"
+o.setup_dir(path)
+
+it = ((UeR[s[0]:s[1]],
+       time     [s[0]:s[1]],
+       extent, s[0], path) for s in stages)
+
+pf.parallel(plot2D, it, o.nbrCores, plot=True)
+
+#----------------------------------------------
+path = o.path+"/plots/UiR"
+o.setup_dir(path)
+
+it = (((UiR)    [s[0]:s[1]],
         time[s[0]:s[1]],
         extent, s[0], path) for s in stages)
 

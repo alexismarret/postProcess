@@ -30,38 +30,38 @@ time = o.getTimeAxis()[st]
 
 #----------------------------------------------
 UiL = np.mean(o.getUfluid(time, "iL", "x"),axis=(1,2))
-UiR = np.mean(o.getUfluid(time, "iR", "x"),axis=(1,2))
+# UiR = np.mean(o.getUfluid(time, "iR", "x"),axis=(1,2))
 
-viR = np.mean(o.getVclassical(time, "iL", "x"),axis=(1,2))
+# viR = np.mean(o.getVclassical(time, "iL", "x"),axis=(1,2))
 
 UeL = np.mean(o.getUfluid(time, "eL", "x"),axis=(1,2))
-UeR = np.mean(o.getUfluid(time, "eR", "x"),axis=(1,2))
+# UeR = np.mean(o.getUfluid(time, "eR", "x"),axis=(1,2))
 
 TiLx = np.mean(o.getUth(time, "iL", "x")**2,axis=(1,2)) * o.getRatioQM("iL")
-TiRx = np.mean(o.getUth(time, "iR", "x")**2,axis=(1,2)) * o.getRatioQM("iR")
+# TiRx = np.mean(o.getUth(time, "iR", "x")**2,axis=(1,2)) * o.getRatioQM("iR")
 
 TeLx = np.mean(o.getUth(time, "eL", "x")**2,axis=(1,2))
-TeRx = np.mean(o.getUth(time, "eR", "x")**2,axis=(1,2))
+# TeRx = np.mean(o.getUth(time, "eR", "x")**2,axis=(1,2))
 
 TiLy = np.mean(o.getUth(time, "iL", "y")**2,axis=(1,2)) * o.getRatioQM("iL")
-TiRy = np.mean(o.getUth(time, "iR", "y")**2,axis=(1,2)) * o.getRatioQM("iR")
+# TiRy = np.mean(o.getUth(time, "iR", "y")**2,axis=(1,2)) * o.getRatioQM("iR")
 
 TeLy = np.mean(o.getUth(time, "eL", "y")**2,axis=(1,2))
-TeRy = np.mean(o.getUth(time, "eR", "y")**2,axis=(1,2))
+# TeRy = np.mean(o.getUth(time, "eR", "y")**2,axis=(1,2))
 
-normB = np.mean(np.sqrt(o.getB(time,"x")**2+
+normB = np.mean(o.getB(time,"x")**2+
                         o.getB(time,"y")**2+
-                        o.getB(time,"z")**2),axis=(1,2))
+                        o.getB(time,"z")**2,axis=(1,2))/2.
 
-normE = np.mean(np.sqrt(o.getE(time,"x")**2+
+normE = np.mean(o.getE(time,"x")**2+
                         o.getE(time,"y")**2+
-                        o.getE(time,"z")**2),axis=(1,2))
+                        o.getE(time,"z")**2,axis=(1,2))/2.
 
-GRavwB = np.gradient(normB)
+# GRavwB = np.gradient(normB)
 
-sat = []
-for i in range(len(GRavwB)-1):
-    if len(sat)<3 and GRavwB[i+1]<0 and GRavwB[i]>0: sat.append(i)
+# sat = []
+# for i in range(len(GRavwB)-1):
+#     if len(sat)<3 and GRavwB[i+1]<0 and GRavwB[i]>0: sat.append(i)
 
 # sl_ew = slice(min_ew,max_ew)
 # sl_iw = slice(min_iw,max_iw)
@@ -70,42 +70,44 @@ for i in range(len(GRavwB)-1):
 
 #%%
 #----------------------------------------------
-fig, (sub1,sub2) = plt.subplots(1,2,figsize=(4.1,2.8),dpi=300,sharex=True,sharey=True)
+# fig, (sub1,sub2) = plt.subplots(1,2,figsize=(4.1,2.8),dpi=300,sharex=True,sharey=True)
+fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300,sharex=True,sharey=True)
 
-for l in sat:
-    sub1.axvline(time[l],color="gray",linestyle="--",linewidth=0.7)
-    sub2.axvline(time[l],color="gray",linestyle="--",linewidth=0.7)
 
-sub1.semilogy(time,normB,color="g",label=r"$B$")
-sub2.semilogy(time,normB,color="g",label=r"$B$")
+# for l in sat:
+#     sub1.axvline(time[l],color="gray",linestyle="--",linewidth=0.7)
+#     sub2.axvline(time[l],color="gray",linestyle="--",linewidth=0.7)
 
-sub1.plot(time,viR,color="cyan")
-sub1.semilogy(time,normE,color="g",linestyle="--",label=r"$E$")
-sub2.semilogy(time,normE,color="g",linestyle="--",label=r"$E$")
+sub1.semilogy(time,normB,color="g",label=r"$\mathcal{E}_B$")
+# sub2.semilogy(time,normB,color="g",label=r"$B$")
 
-sub1.semilogy(time,UiL,color="b",label=r"$U_{iL}$")
-sub1.semilogy(time,np.abs(UiR),color="k",linestyle="--",label=r"$U_{iR}$")
+# sub1.plot(time,viR,color="cyan")
+sub1.semilogy(time,normE,color="g",linestyle="--",label=r"$\mathcal{E}_E$")
+# sub2.semilogy(time,normE,color="g",linestyle="--",label=r"$E$")
 
-sub2.semilogy(time,UeL,color="b",label=r"$U_{eL}$")
-sub2.semilogy(time,np.abs(UeR),color="k",linestyle="--",label=r"$U_{eR}$")
+sub1.semilogy(time,UiL,color="b",label=r"$U_{iL|x}$")
+# sub1.semilogy(time,np.abs(UiR),color="k",linestyle="--",label=r"$U_{iR}$")
 
-sub1.semilogy(time,TiLx,color="orange",label=r"$T_{iLx}$")
-sub2.semilogy(time,TiRx,color="orange",label=r"$T_{iRx}$")
+sub1.semilogy(time,UeL,color="b",linestyle="--",label=r"$U_{eL|x}$")
+# sub2.semilogy(time,np.abs(UeR),color="k",linestyle="--",label=r"$U_{eR}$")
 
-sub1.semilogy(time,TeLx,color="orange",linestyle="--",label=r"$T_{eLx}$")
-sub2.semilogy(time,TeRx,color="orange",linestyle="--",label=r"$T_{eRx}$")
+sub1.semilogy(time,TiLx,color="orange",label=r"$T_{iL|x}$")
+# sub2.semilogy(time,TiRx,color="orange",label=r"$T_{iRx}$")
 
-sub1.semilogy(time,TiLy,color="r",label=r"$T_{iLy}$")
-sub2.semilogy(time,TiRy,color="r",label=r"$T_{iRy}$")
+sub1.semilogy(time,TeLx,color="orange",linestyle="--",label=r"$T_{eL|x}$")
+# sub2.semilogy(time,TeRx,color="orange",linestyle="--",label=r"$T_{eRx}$")
 
-sub1.semilogy(time,TeLy,color="r",linestyle="--",label=r"$T_{eLy}$")
-sub2.semilogy(time,TeRy,color="r",linestyle="--",label=r"$T_{eRy}$")
+sub1.semilogy(time,TiLy,color="r",label=r"$T_{iL|y}$")
+# sub2.semilogy(time,TiRy,color="r",label=r"$T_{iRy}$")
 
-# sub1.set_ylim(1e-6,2e-1)
+sub1.semilogy(time,TeLy,color="r",linestyle="--",label=r"$T_{eL|y}$")
+# sub2.semilogy(time,TeRy,color="r",linestyle="--",label=r"$T_{eRy}$")
+
 sub1.set_xlim(time[0],time[-1])
+sub1.set_ylim(1e-3,3e2)
 
 sub1.set_xlabel(r"$t\ [\omega_{pi}^{-1}]$")
-sub2.set_xlabel(r"$t\ [\omega_{pi}^{-1}]$")
+# sub2.set_xlabel(r"$t\ [\omega_{pi}^{-1}]$")
 
 
 # sub1.semilogy(time[sl_ew],amp_ew*np.exp(index_ew*time[sl_ew]),color="k")
@@ -113,5 +115,5 @@ sub2.set_xlabel(r"$t\ [\omega_{pi}^{-1}]$")
 # sub1.semilogy(time[sl_iw],amp_iw*np.exp(index_iw*time[sl_iw]),color="k")
 
 # r = index_ew/index_iw
-sub1.legend(frameon=False)
-sub2.legend(frameon=False)
+sub1.legend(frameon=False,ncol=4)
+# sub2.legend(frameon=False)

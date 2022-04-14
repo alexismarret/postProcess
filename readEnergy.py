@@ -21,7 +21,7 @@ plt.rcParams.update(params)
 plt.close("all")
 
 #----------------------------------------------
-run = "counterStream"
+run = "counterStreamFast"
 
 o = osiris.Osiris(run,spNorm="iL")
 

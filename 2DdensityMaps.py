@@ -81,7 +81,7 @@ def plot2D(data,time,extent,ind,figPath):
     return
 
 #----------------------------------------------
-run  ="counterStream7"
+run  ="counterStreamFast"
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)

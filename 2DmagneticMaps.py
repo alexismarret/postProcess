@@ -88,7 +88,7 @@ run  ="counterStreamFast"
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
-st = slice(None,None,2)
+st = slice(None,None,1)
 x    = o.getAxis("x")[sx]
 y    = o.getAxis("y")[sx]
 time = o.getTimeAxis()[st]
