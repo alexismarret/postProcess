@@ -10,26 +10,29 @@ import itertools
 import sys
 
 #--------------------------------------------------------------
-dim = "3D"
-Ncores = 64*64
+dim = "2D"
+Nnodes = 1
+NCPUperNodes = 64
+Nthreads = 4
 
-Ncell = np.array([512,512,512])
-duration = 6000                 #in units of 1/w_pe
+Ncell = np.array([1024,512,512])
+duration = 700.                 #in units of 1/w_pe
+
 v  = 0.5                        #in units of c (=beta)
 n0 = 0.5     #density in rest frame
 T  = 1e-6    #in units of me * c^2 (=511 KeV) in rest frame
 
-mu = 32.
+mu = 50.
 
 B = 10.
 
-dx = 1/2.       #in units of c/w_pe
-dy = 1/2.
+dx = 1/8.       #in units of c/w_pe
+dy = 1/8.
 dz = 1/2.
 
-ppc = 8
+ppc = 64
 nPop = 4
-ndumpTot = 50
+ndumpTot = 300     #total number of dumps wanted
 
 #--------------------------------------------------------------
 gamma = 1./np.sqrt(1-v**2)
@@ -39,7 +42,6 @@ uthe = np.sqrt(T)
 uthi = np.sqrt(T/mu)
 
 t_ci_wpe = 1. / (B/(gamma*mu))
-
 ratio_l_i_l_e = np.sqrt(mu)
 ratio_l_d_l_e = np.sqrt(T/gamma)
 
@@ -68,6 +70,7 @@ nIter = int(np.ceil(duration/dt))
 nbrPart = ppc*np.product(Ncell)*nPop
 t_estimate = 4e-7 * nIter*nbrPart /3600.
 size = 32./8. / (1024.**3) * np.product(Ncell)*ndumpTot
+Ncores = Nnodes*NCPUperNodes
 
 #--------------------------------------------------------------
 #get domain decomposition
@@ -115,16 +118,23 @@ if dim!="1D":
 #--------------------------------------------------------------
 r=5
 print("-------------------------------")
-print("Nx =",Ncell[0],"| Lx =",Lx)
+print("Nx =",Ncell[0])
 if   dim=="2D":
-    print("Ny =",Ncell[1],"| Ly =",Ly)
+    print("Ny =",Ncell[1])
 elif dim=="3D":
-    print("Ny =",Ncell[1],"| Ly =",Ly)
-    print("Nz =",Ncell[2],"| Lz =",Lz)
+    print("Ny =",Ncell[1])
+    print("Nz =",Ncell[2])
+
+print("Lx =",Lx,"[c/wpe] <->",round(Lx/ratio_l_i_l_e,1),"[c/wpi]")
+if   dim=="2D":
+    print("Ly =",Ly,"[c/wpe] <->",round(Ly/ratio_l_i_l_e,1),"[c/wpi]")
+elif dim=="3D":
+    print("Ly =",Lx,"[c/wpe] <->",round(Ly/ratio_l_i_l_e,1),"[c/wpi]")
+    print("Lz =",Lx,"[c/wpe] <->",round(Lz/ratio_l_i_l_e,1),"[c/wpi]")
 
 print("dt =",round(dt,r))
 print("nDump =",nDump)
-
+print("num_par_max =",int(3*nbrPart/(Nthreads*Ncores)))
 print("-------------------------------")
 print("n =",round(n,r))
 print("u =",round(u,r))
@@ -142,6 +152,7 @@ print("dtDump =",round(duration/np.sqrt(mu)/ndumpTot,1),"[1/wpi]")
 print("nIter =",nIter)
 print("-------------------------------")
 print("nbrPart =",round(nbrPart/1e6,2),"millions")
+
 if   dim=="1D":
     print("Ncores =",Ncores)
     print("Cells per core =",np.round(Ncell/Ncores,1))

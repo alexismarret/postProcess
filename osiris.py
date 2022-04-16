@@ -224,9 +224,8 @@ class Osiris:
 
         #single value read
         else:
-            it = list(it)
-            if len(it)!=1: sys.exit("Wrong data path for '"+dataPath+"'")
-            G = pf.readData(it)
+            if N!=1: sys.exit("Wrong data path for '"+dataPath+"'")
+            G = pf.readData(next(it))
 
         return G
 
@@ -456,7 +455,7 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def locFilament(self, time, fac=2):
+    def locFilament(self, time, polarity, fac=2):
 
         j = (self.getCurrent(time, "eL", "x")+
              self.getCurrent(time, "eR", "x")+
@@ -464,11 +463,63 @@ class Osiris:
              self.getCurrent(time, "iR", "x"))
 
         #filament defined as j > std(j) initially (except first time step numerical)
-        K = np.std(j[1]) * fac
+        K = polarity * np.std(j[1]) * fac
 
         #yield true when value is NOT in filament
-        mask = np.ma.getmask(np.ma.masked_where(np.abs(j)<K,j,copy=False))
+        if    polarity== 1: mask = np.ma.getmask(np.ma.masked_where(j<K,j,copy=False))
+        elif  polarity==-1: mask = np.ma.getmask(np.ma.masked_where(j>K,j,copy=False))
 
         return mask
 
 
+    #--------------------------------------------------------------
+    def buildUnitVector(self, sh, direction):
+
+        vec = np.zeros(sh)
+
+        if   direction == "x" : vec[...,0] = 1.
+        elif direction == "y" : vec[...,1] = 1.
+        elif direction == "z" : vec[...,2] = 1.
+
+        return vec
+
+
+    #--------------------------------------------------------------
+    def emfAlignedBasis(self, time, emf) :
+
+        if emf == "B":
+            Para = np.stack((self.getB(time, "x"),
+                             self.getB(time, "y"),
+                             self.getB(time, "z")),axis=-1)
+
+        elif emf == "E":
+            Para = np.stack((self.getE(time, "x"),
+                             self.getE(time, "y"),
+                             self.getE(time, "z")),axis=-1)
+
+        #normal vector
+        Normal = np.cross(Para, self.buildUnitVector(Para.shape, direction="y"))
+        # Normal = (Fy*ref_vector[...,2] - Fz*ref_vector[...,1] +
+        #           Fz*ref_vector[...,0] - Fx*ref_vector[...,2] +
+        #           Fx*ref_vector[...,1] - Fy*ref_vector[...,0])
+
+        #perp vector
+        Perp = np.cross(Para, Normal)
+        # Normal = (Fy*Normal[...,2] - Fz*Normal[...,1] +
+        #           Fz*Normal[...,0] - Fx*Normal[...,2] +
+        #           Fx*Normal[...,1] - Fy*Normal[...,0])
+
+        #normalization
+        np.divide(Para  , np.linalg.norm(Para,   axis=-1, keepdims=True), out = Para)
+        np.divide(Normal, np.linalg.norm(Normal, axis=-1, keepdims=True), out = Normal)
+        np.divide(Perp,   np.linalg.norm(Perp,   axis=-1, keepdims=True), out = Perp)
+
+        return Para, Normal, Perp
+
+
+    #--------------------------------------------------------------
+    def dot_product(self, A, B):
+
+        return (A[...,0]*B[...,0]+
+                A[...,1]*B[...,1]+
+                A[...,2]*B[...,2])

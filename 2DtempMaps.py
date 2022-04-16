@@ -89,15 +89,15 @@ x     = o.getAxis("x")[sx]
 y     = o.getAxis("y")[sx]
 time = o.getTimeAxis("iL")[st]
 
-mu = np.sqrt(o.getRatioQM("iL"))
+mu = o.getRatioQM("iL")
 
 #----------------------------------------------
-rTiX= (o.getUth(time, "iL", "x") / (o.getUth(time, "iR", "x")))**2
+# rTiX= (o.getUth(time, "iL", "x") / (o.getUth(time, "iR", "x")))**2
 # rY = (o.getUth(time, "eL", "y") / (o.getUth(time, "iL", "y") * mu))**2
 # rZ = (o.getUth(time, "eL", "z") / (o.getUth(time, "iL", "z") * mu))**2
 
 # TeX = (o.getUth(time, "eL", "x"))**2
-# TiX = (o.getUth(time, "iL", "x") * mu)**2
+TiX = (o.getUth(time, "eL", "x") )**2 * mu
 
 # TeY = (o.getUth(time, "eL", "y"))**2
 # TiY = (o.getUth(time, "iL", "y") * mu)**2
@@ -110,10 +110,10 @@ stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
 extent=(min(x),max(x),min(y),max(y))
 
 #----------------------------------------------
-path = o.path+"/plots/rTiX"
+path = o.path+"/plots/TeX"
 o.setup_dir(path)
 
-it = ((rTiX  [s[0]:s[1]],
+it = ((TeX  [s[0]:s[1]],
         time        [s[0]:s[1]],
         extent, s[0], path) for s in stages)
 

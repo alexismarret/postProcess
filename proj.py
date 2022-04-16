@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Mar 10 15:18:50 2022
+Created on Thu Apr 14 17:12:34 2022
 
 @author: alexis
 """
@@ -36,7 +36,7 @@ def plot2D(data,time,extent,ind,figPath):
                    extent=extent,origin="lower",
                    aspect=1,
                    cmap="bwr",
-                   # vmin = -0.05, vmax = 0.05,
+                   vmin = -0.05, vmax = 0.05,
                    interpolation="None")
 
     divider = make_axes_locatable(sub1)
@@ -84,58 +84,65 @@ run  ="counterStreamFast"
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
-st = slice(None,None,1)
+st = slice(None,None,10)
 x    = o.getAxis("x")[sx]
 y    = o.getAxis("y")[sx]
-time = o.getTimeAxis("eL")[st]
+time = o.getTimeAxis("iL")[st]
 
 #----------------------------------------------
-UeL = o.getUfluid(time, "eL","x")
-UiL = o.getUfluid(time, "iL","x")
 
-UeR = o.getUfluid(time, "eR","x")
-UiR = o.getUfluid(time, "iR","x")
 
+Para, Normal, Perp = o.emfAlignedBasis(time, emf="B")
+
+UeL = np.stack((o.getUfluid(time, "iL","x"),
+                o.getUfluid(time, "iL","y"),
+                o.getUfluid(time, "iL","z")),axis=-1)
+
+UeL_para   = o.dot_product(UeL, Para)
+UeL_normal = o.dot_product(UeL, Normal)
+UeL_perp   = o.dot_product(UeL, Perp)
+
+
+#----------------------------------------------
+fig, sub1 = plt.subplots(1,figsize=(4.1,1.8),dpi=300)
+
+sub1.plot(time,np.mean(UeL_perp,axis=(1,2)))
+
+
+"""
 #----------------------------------------------
 stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
 extent=(min(x),max(x),min(y),max(y))
 
 #----------------------------------------------
-path = o.path+"/plots/UeL"
+path = o.path+"/plots/UeL_para"
 o.setup_dir(path)
 
-it = ((UeL[s[0]:s[1]],
+it = ((UeL_para[s[0]:s[1]],
        time     [s[0]:s[1]],
        extent, s[0], path) for s in stages)
 
 pf.parallel(plot2D, it, o.nbrCores, plot=True)
 
 #----------------------------------------------
-path = o.path+"/plots/UiL"
+path = o.path+"/plots/UeL_normal"
 o.setup_dir(path)
 
-it = (((UiL)    [s[0]:s[1]],
+it = (((UeL_normal)    [s[0]:s[1]],
         time[s[0]:s[1]],
         extent, s[0], path) for s in stages)
 
 pf.parallel(plot2D, it, o.nbrCores, plot=True)
 
 #----------------------------------------------
-path = o.path+"/plots/UeR"
+path = o.path+"/plots/UeL_perp"
 o.setup_dir(path)
 
-it = ((UeR[s[0]:s[1]],
-       time     [s[0]:s[1]],
-       extent, s[0], path) for s in stages)
-
-pf.parallel(plot2D, it, o.nbrCores, plot=True)
-
-#----------------------------------------------
-path = o.path+"/plots/UiR"
-o.setup_dir(path)
-
-it = (((UiR)    [s[0]:s[1]],
+it = (((UeL_perp)    [s[0]:s[1]],
         time[s[0]:s[1]],
         extent, s[0], path) for s in stages)
 
 pf.parallel(plot2D, it, o.nbrCores, plot=True)
+
+
+"""
