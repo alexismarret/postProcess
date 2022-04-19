@@ -37,12 +37,12 @@ y     = o.getAxis("y")
 time = o.getTimeAxis("eL")
 
 xpos = 0
-t = 2
+t = 1
 time = time[t]
 
 #----------------------------------------------
 B = o.getB(time,"z")[0,xpos]
-Ey = o.getE(time,"x")[0,xpos]
+E = o.getE(time,"x")[0,xpos]
 
 j_iLx = (o.getCurrent(time, "eL", "x")[0,xpos]+
          o.getCurrent(time, "eR", "x")[0,xpos]+
@@ -55,7 +55,7 @@ st=2.     #standard deviation for gaussian filter
 win=signal.gaussian(R,st)   #window
 
 B      = signal.convolve(B, win, mode='same') / sum(win)
-Ey     = signal.convolve(Ey, win, mode='same') / sum(win)
+E     = signal.convolve(E, win, mode='same') / sum(win)
 j_iLx  = signal.convolve(j_iLx, win, mode='same') / sum(win)
 
 
@@ -64,8 +64,8 @@ fig, sub1 = plt.subplots(1,figsize=(4.1,1.8),dpi=300)
 
 sub1.axhline(0,color="gray",linestyle="--",linewidth=0.7)
 
-sub1.plot(y,Ey,color="r",label=r"$E$")
-sub1.plot(y,B,color="g",label=r"$B$")
+sub1.plot(y,E,color="r",label=r"$E_x$")
+sub1.plot(y,B,color="g",label=r"$B_z$")
 sub1.plot(y,j_iLx ,color="b",label=r"$J_{x}$")
 
 

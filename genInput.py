@@ -16,18 +16,18 @@ NCPUperNodes = 64
 Nthreads = 4
 
 Ncell = np.array([1024,512,512])
-duration = 700.                 #in units of 1/w_pe
+duration = 4000                 #in units of 1/w_pe
 
 v  = 0.5                        #in units of c (=beta)
 n0 = 0.5     #density in rest frame
 T  = 1e-6    #in units of me * c^2 (=511 KeV) in rest frame
 
-mu = 50.
+mu = 1836.
 
 B = 10.
 
-dx = 1/8.       #in units of c/w_pe
-dy = 1/8.
+dx = 1/2.       #in units of c/w_pe
+dy = 1/2.
 dz = 1/2.
 
 ppc = 64

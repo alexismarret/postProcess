@@ -34,9 +34,9 @@ def plot2D(data,time,extent,ind,figPath):
 
     im=sub1.imshow(data[0,...].T,
                    extent=extent,origin="lower",
-                   aspect=1,
-                   cmap="bwr",
-                   # vmin = -0.05, vmax = 0.05,
+                    aspect=1,
+                   cmap="hot",
+                    vmin = 0.5, vmax = 0.6,
                    interpolation="None")
 
     divider = make_axes_locatable(sub1)
@@ -56,7 +56,7 @@ def plot2D(data,time,extent,ind,figPath):
               transform=sub1.transAxes)
 
     txt = sub1.text(0.35, 1.05,
-                    r"$t=%.1f\ [\omega_{pe}^{-1}]$"%time[0],
+                    r"$t=%.1f\ [\omega_{pi}^{-1}]$"%time[0],
                     horizontalalignment='right',
                     verticalalignment='bottom',
                     transform=sub1.transAxes)
@@ -68,7 +68,7 @@ def plot2D(data,time,extent,ind,figPath):
 
         Artist.remove(txt)
         txt = sub1.text(0.35, 1.05,
-                        r"$t=%.1f\ [\omega_{pe}^{-1}]$"%time[i],
+                        r"$t=%.1f\ [\omega_{pi}^{-1}]$"%time[i],
                         horizontalalignment='right',
                         verticalalignment='bottom',
                         transform=sub1.transAxes)
@@ -80,35 +80,36 @@ def plot2D(data,time,extent,ind,figPath):
     return
 
 #----------------------------------------------
-run  ="counterStreamFast"
+run  ="CS2Dhr"
 o = osiris.Osiris(run,spNorm="iL")
 
-sx = slice(None,None,1)
-st = slice(None,None,1)
+sx = slice(0,256,1)
+sy = slice(0,128,1)
+st = slice(None,70,1)
 x    = o.getAxis("x")[sx]
-y    = o.getAxis("y")[sx]
-time = o.getTimeAxis("eL")[st]
+y    = o.getAxis("y")[sy]
+time = o.getTimeAxis()[st]
 
 #----------------------------------------------
-UeL = o.getUfluid(time, "eL","x")
-UiL = o.getUfluid(time, "iL","x")
+# UeL = o.getUfluid(time, "eL","x")
+# UeR = o.getUfluid(time, "eR","x")
 
-UeR = o.getUfluid(time, "eR","x")
-UiR = o.getUfluid(time, "iR","x")
+UiL = o.getUfluid(time, "iL","x")[st,sx,sy]
+# UiR = o.getUfluid(time, "iR","x")
 
 #----------------------------------------------
 stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
 extent=(min(x),max(x),min(y),max(y))
 
-#----------------------------------------------
-path = o.path+"/plots/UeL"
-o.setup_dir(path)
+# #----------------------------------------------
+# path = o.path+"/plots/UeL"
+# o.setup_dir(path)
 
-it = ((UeL[s[0]:s[1]],
-       time     [s[0]:s[1]],
-       extent, s[0], path) for s in stages)
+# it = ((UeL[s[0]:s[1]],
+#        time     [s[0]:s[1]],
+#        extent, s[0], path) for s in stages)
 
-pf.parallel(plot2D, it, o.nbrCores, plot=True)
+# pf.parallel(plot2D, it, o.nbrCores, plot=True)
 
 #----------------------------------------------
 path = o.path+"/plots/UiL"
@@ -120,22 +121,22 @@ it = (((UiL)    [s[0]:s[1]],
 
 pf.parallel(plot2D, it, o.nbrCores, plot=True)
 
-#----------------------------------------------
-path = o.path+"/plots/UeR"
-o.setup_dir(path)
+# #----------------------------------------------
+# path = o.path+"/plots/UeR"
+# o.setup_dir(path)
 
-it = ((UeR[s[0]:s[1]],
-       time     [s[0]:s[1]],
-       extent, s[0], path) for s in stages)
+# it = ((UeR[s[0]:s[1]],
+#        time     [s[0]:s[1]],
+#        extent, s[0], path) for s in stages)
 
-pf.parallel(plot2D, it, o.nbrCores, plot=True)
+# pf.parallel(plot2D, it, o.nbrCores, plot=True)
 
-#----------------------------------------------
-path = o.path+"/plots/UiR"
-o.setup_dir(path)
+# #----------------------------------------------
+# path = o.path+"/plots/UiR"
+# o.setup_dir(path)
 
-it = (((UiR)    [s[0]:s[1]],
-        time[s[0]:s[1]],
-        extent, s[0], path) for s in stages)
+# it = (((UiR)    [s[0]:s[1]],
+#         time[s[0]:s[1]],
+#         extent, s[0], path) for s in stages)
 
-pf.parallel(plot2D, it, o.nbrCores, plot=True)
+# pf.parallel(plot2D, it, o.nbrCores, plot=True)

@@ -34,7 +34,7 @@ def plot2D(data,time,extent,ind,figPath):
 
     im=sub1.imshow(data[0,...].T,
                    extent=extent,origin="lower",
-                   aspect=1,
+                   # aspect=1,
                    cmap="bwr",
                    vmin = -0.05, vmax = 0.05,
                    interpolation="None")
@@ -57,7 +57,7 @@ def plot2D(data,time,extent,ind,figPath):
               transform=sub1.transAxes)
 
     txt = sub1.text(0.35, 1.05,
-                    r"$t=%.1f\ [\omega_{pe}^{-1}]$"%time[0],
+                    r"$t=%.1f\ [\omega_{pi}^{-1}]$"%time[0],
                     horizontalalignment='right',
                     verticalalignment='bottom',
                     transform=sub1.transAxes)
@@ -84,17 +84,18 @@ def plot2D(data,time,extent,ind,figPath):
     return
 
 #----------------------------------------------
-run  ="counterStreamFast"
+run  ="CS2Dhr"
 o = osiris.Osiris(run,spNorm="iL")
 
-sx = slice(None,None,1)
-st = slice(None,None,1)
+sx = slice(0,256,1)
+sy = slice(0,128,1)
+st = slice(None,70,1)
 x    = o.getAxis("x")[sx]
-y    = o.getAxis("y")[sx]
+y    = o.getAxis("y")[sy]
 time = o.getTimeAxis()[st]
 
 #----------------------------------------------
-Bz = o.getB(time,"z")
+Bz = o.getB(time,"z")[st,sx,sy]
 
 #----------------------------------------------
 stages = pf.distrib_task(0, len(time)-1, o.nbrCores)

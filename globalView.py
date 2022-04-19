@@ -74,7 +74,7 @@ normE = np.mean(o.getE(time,"x")**2+
 # amp_ew, index_ew, rsquared_ew = fit.fitExponential(time[sl_ew], avwB[sl_ew])
 # amp_iw, index_iw, rsquared_iw = fit.fitExponential(time[sl_iw], avwB[sl_iw])
 
-#%%
+
 #----------------------------------------------
 # fig, (sub1,sub2) = plt.subplots(1,2,figsize=(4.1,2.8),dpi=300,sharex=True,sharey=True)
 fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300,sharex=True,sharey=True)
