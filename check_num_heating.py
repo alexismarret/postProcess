@@ -27,7 +27,10 @@ plt.rcParams.update(params)
 plt.close("all")
 
 #----------------------------------------------
-run  = ("uniform2","uniform4","uniform8","uniform16")
+run  = ("resTest/uniform2",
+        "resTest/uniform4",
+        "resTest/uniform8",
+        "resTest/uniform16")
 
 #----------------------------------------------
 fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)

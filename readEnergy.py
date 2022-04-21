@@ -21,16 +21,16 @@ plt.rcParams.update(params)
 # plt.close("all")
 
 #----------------------------------------------
-run = "counterStreamFast"
+run = "CS3D"
 
 o = osiris.Osiris(run,spNorm="iL")
 
 #----------------------------------------------
 st = slice(None,None,1)
-time = o.getTimeAxis()[st]
+time = o.getTimeAxis(ene=True)[st]
 
-En_B = np.sum(o.getEnergyIntegr(time, "B"),axis=-1)/2
-En_E = np.sum(o.getEnergyIntegr(time, "E"),axis=-1)/2
+En_B = o.getEnergyIntegr(time, "B")
+En_E = o.getEnergyIntegr(time, "E")
 
 kin_el = o.getEnergyIntegr(time, qty="kin", species="eL")
 kin_er = o.getEnergyIntegr(time, qty="kin", species="eR")
@@ -58,9 +58,11 @@ kin_ir = o.getEnergyIntegr(time, qty="kin", species="iR")
 #                                             axis=(1,2))/2
 
 # E_tot = En_E+En_B+kin_el+kin_il+kin_er+kin_ir+U_int_iL+U_int_iR+U_int_eL+U_int_eR
-E_tot = En_E+En_B+kin_el+kin_il+kin_er+kin_ir
+E_tot = (np.sum(En_E,axis=-1)/2 +
+         np.sum(En_B,axis=-1)/2 +
+         kin_el + kin_il + kin_er + kin_ir)
 
-"""
+
 #----------------------------------------------
 fig, ((sub1,sub2),(sub3,sub4)) = plt.subplots(2,2,figsize=(4.1,1.8),dpi=300)
 
@@ -82,8 +84,7 @@ sub2.legend(frameon=False)
 sub3.legend(frameon=False)
 sub4.legend(frameon=False)
 
-plt.savefig(o.path+"/plots/integratedEnergyDensity.png",dpi="figure")
-"""
+
 """
 #----------------------------------------------
 fig, sub1 = plt.subplots(1,figsize=(4.1,1.8),dpi=300)
@@ -103,7 +104,7 @@ sub1.semilogy(time,U_int_iR)
 
 sub1.semilogy(time,E_tot)
 """
-
+"""
 #----------------------------------------------
 fig, sub1 = plt.subplots(1,figsize=(4.1,1.8),dpi=300)
 
@@ -114,7 +115,7 @@ sub1.legend(frameon=False)
 sub1.set_xlim(time[0],time[-1])
 sub1.set_xlabel(r"$t\ [\omega_{pi}^{-1}]$")
 sub1.set_ylabel(r"$(\mathcal{E}-\mathcal{E}_0)/\mathcal{E}_0$")
-
+"""
 """
 the total energy reported by the scalar HIST diagnostics are:
 

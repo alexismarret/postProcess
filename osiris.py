@@ -19,6 +19,7 @@ class Osiris:
     def __init__(self, run, spNorm=None, nbrCores=6):
 
         self.path = os.environ.get("OSIRIS_RUN_DIR") + "/" + run
+        self.allRuns = np.sort(os.listdir(os.environ.get("OSIRIS_RUN_DIR")))
         self.nbrCores = nbrCores
         self.spNorm = spNorm
 
@@ -36,7 +37,7 @@ class Osiris:
         try:
             input_file = glob.glob(self.path+"/*.in")[0]
         except IndexError:
-            sys.exit("Cannot find input file in '"+self.path+"'")
+            raise ValueError("Cannot find input file in '"+self.path+"'")
 
         #open input file
         with open( input_file) as f:
@@ -137,6 +138,39 @@ class Osiris:
 
 
     #--------------------------------------------------------------
+    def printAttributes(self):
+
+        print("-------------------------------")
+        print("path =", self.path)
+        print("allRuns =", self.allRuns)
+        print("-------------------------------")
+        print("grid =", self.grid)
+        print("gridPosMin =", self.gridPosMin)
+        print("gridPosMax =", self.gridPosMax)
+        print("cellHyperVolume =", self.cellHyperVolume)
+        print("boxHyperVolume =", self.boxHyperVolume)
+        print("-------------------------------")
+        print("dt =", self.dt)
+        print("tmin =", self.tmin)
+        print("tmax =", self.tmax)
+        try: print("ext_b0 =", self.ext_b0)
+        except: pass
+        print("-------------------------------")
+        print("species_name =", self.species_name)
+        print("rqm =", self.rqm)
+        print("ndump_facP =", self.ndump_facP)
+        print("ndump_fac_ene =", self.ndump_fac_ene)
+        print("ndump_fac_raw =", self.ndump_fac_raw)
+        print("-------------------------------")
+        print("ndump =", self.ndump)
+        print("ndump_fac_ene_int =", self.ndump_fac_ene_int)
+        print("ndump_facF =", self.ndump_facF)
+        print("ndump_facC =", self.ndump_facC)
+
+        return
+
+
+    #--------------------------------------------------------------
     def getRatioQM(self, species):
 
         index=np.nonzero(np.in1d(self.species_name,species))[0]
@@ -167,10 +201,14 @@ class Osiris:
         #species time
         if species!=None:
             try: species_index = np.where(self.species_name==species)[0][0]
-            except: sys.exit("Unknown species '"+species+"'")
+            except: raise ValueError("Unknown species '"+species+"'")
 
             if ene:
-                N = len(os.listdir(self.path+"/MS/RAW/"+species))
+                sIndex = np.nonzero(np.in1d(self.species_name,species))[0][0] + 1
+                #make sure padding is correct
+                if sIndex < 10: sIndex = "0" + str(sIndex)
+                else:           sIndex = str(sIndex)
+                N = len(np.loadtxt(self.path+"/HIST/par"+sIndex+"_ene",skiprows=2,usecols=0))
                 delta = self.dt*self.ndump*self.ndump_fac_ene[species_index]
 
             elif raw:
@@ -186,7 +224,7 @@ class Osiris:
         #fields time
         else:
             if ene:
-                N = len(os.listdir(self.path+"/MS/RAW/"+species))
+                N = len(np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=0))
                 delta = self.dt*self.ndump*self.ndump_fac_ene_int
 
             else:
@@ -214,7 +252,7 @@ class Osiris:
         index=np.nonzero(np.in1d(self.getTimeAxis(species),time))[0]
 
         #check if requested times exist
-        if len(index)!=N: sys.exit("Unknown time for '"+dataPath+"'")
+        if len(index)!=N: raise ValueError("Unknown time for '"+dataPath+"'")
 
         it = (dataPath + p for p in np.take(sorted(os.listdir(dataPath)), index))
 
@@ -224,7 +262,7 @@ class Osiris:
 
         #single value read
         else:
-            if N!=1: sys.exit("Wrong data path for '"+dataPath+"'")
+            if N!=1: raise ValueError("Wrong data path for '"+dataPath+"'")
             G = pf.readData(next(it))
 
         return G
@@ -238,10 +276,10 @@ class Osiris:
         try:    N = len(time)
         except: time = [time]; N = 1
 
-        cond=np.in1d(self.getTimeAxis(species),time)
+        cond=np.in1d(self.getTimeAxis(species=species,ene=True),time)
 
         #check if requested times exist
-        if len(np.nonzero(cond)[0])!=N: sys.exit("Unknown time for '"+qty+"'")
+        if len(np.nonzero(cond)[0])!=N: raise ValueError("Unknown time for '"+qty+"'")
 
         #energy per field component
         if qty=="B":
@@ -260,7 +298,7 @@ class Osiris:
             sIndex = np.nonzero(np.in1d(self.species_name,species))[0][0] + 1
             #make sure padding is correct
             if sIndex < 10: sIndex = "0" + str(sIndex)
-            else          : sIndex = str(sIndex)
+            else:           sIndex = str(sIndex)
 
             ene = np.loadtxt(self.path+"/HIST/par"+sIndex+"_ene",skiprows=2,usecols=3)[cond]
 

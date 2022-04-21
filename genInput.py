@@ -22,7 +22,7 @@ v  = 0.5                        #in units of c (=beta)
 n0 = 0.5     #density in rest frame
 T  = 1e-6    #in units of me * c^2 (=511 KeV) in rest frame
 
-mu = 1836.
+mu = 1836
 
 B = 10.
 
