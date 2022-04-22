@@ -21,7 +21,7 @@ plt.rcParams.update(params)
 # plt.close("all")
 
 #----------------------------------------------
-run  ="CS2Dhr"
+run  ="counterStreamFast"
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)

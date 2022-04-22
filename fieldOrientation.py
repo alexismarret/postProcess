@@ -6,14 +6,6 @@ Created on Tue Apr 19 14:27:52 2022
 @author: alexis
 """
 
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Fri Apr 15 16:26:32 2022
-
-@author: alexis
-"""
-
 
 #----------------------------------------------
 import osiris

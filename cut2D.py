@@ -78,7 +78,7 @@ sub1.plot(y,j_iLx ,color="b",label=r"$J_{x}$")
 sub1.plot(y,Bz,color="g",label=r"$B_z$")
 
 sub1.plot(y,Ex,color="r",label=r"$E_x$")
-sub1.plot(y,Ey,color="orange",label=r"$E_y$")
+# sub1.plot(y,Ey,color="orange",label=r"$E_y$")
 
 
 sub1.legend(frameon=False)

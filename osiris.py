@@ -212,13 +212,15 @@ class Osiris:
                 delta = self.dt*self.ndump*self.ndump_fac_ene[species_index]
 
             elif raw:
-                N = len(os.listdir(self.path+"/MS/RAW/"+species))
+                #use glob.glob to ignore hidden files
+                N = len(glob.glob(self.path+"/MS/RAW/"+species+"/*"))
                 delta = self.dt*self.ndump*self.ndump_fac_raw[species_index]
 
             else:
                 #retrieve number of dumps from any of the folders in /DENSITY
-                N = len(os.listdir(self.path+"/MS/UDIST/"+species+"/"+
-                                   os.listdir(self.path+"/MS/UDIST/"+species)[0]))
+                N = len(glob.glob(self.path+"/MS/UDIST/"+species+"/"+
+                                   os.listdir(self.path+"/MS/UDIST/"+species)[0]+"/*"))
+
                 delta = self.dt*self.ndump*self.ndump_facP[species_index]
 
         #fields time
@@ -229,8 +231,8 @@ class Osiris:
 
             else:
                 #retrieve number of dumps from any of the folders in /FLD
-                N = len(os.listdir(self.path+"/MS/FLD/"+
-                                   os.listdir(self.path+"/MS/FLD")[0]))
+                N = len(glob.glob(self.path+"/MS/FLD/"+
+                                   os.listdir(self.path+"/MS/FLD")[0]+"/*"))
                 delta = self.dt*self.ndump*self.ndump_facF
 
         time = np.linspace(self.tmin,(N-1)*delta,N)
@@ -242,7 +244,7 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def getOnGrid(self, time, dataPath, species, parallel):
+    def getOnGrid(self, time, dataPath, species, sl, parallel):
 
         #handle list or single time
         try:    N = len(time)
@@ -254,18 +256,59 @@ class Osiris:
         #check if requested times exist
         if len(index)!=N: raise ValueError("Unknown time for '"+dataPath+"'")
 
-        it = (dataPath + p for p in np.take(sorted(os.listdir(dataPath)), index))
+        #complete slice if needed
+        slices = [slice(None)]*len(self.grid)
+        if type(sl) in {slice,int}: sl = (sl,)
+        for k,s in enumerate(sl): slices[k]=s
+        slices = tuple(slices)
+
+        #create inputs
+        it = ((dataPath + p, slices) for p in np.take(sorted(os.listdir(dataPath)), index))
 
         #parallel reading of data
         if parallel:
             G = pf.parallel(pf.readData, it, self.nbrCores, plot=False)
 
-        #single value read
+        #sequential read
         else:
-            if N!=1: raise ValueError("Wrong data path for '"+dataPath+"'")
-            G = pf.readData(next(it))
+            #calculate size of sliced array
+            G = np.zeros((N,)+self.getSlicedSize(slices))
+            # print(G.shape)
+            for i in range(N):
+                G[i] = pf.readData(next(it)[0], slices)
 
         return G
+
+
+
+    #--------------------------------------------------------------
+    def getSlicedSize(self, sl):
+
+        #array containing final indices and step of sliced array
+        #None if no slicing in a given direction, and 0 if only one element
+        ind = [None]*len(self.grid)
+
+        for k in range(len(ind)):
+            try:
+                #element of sl is a slice()
+                if type(sl[k])==slice:
+                    ind[k] = sl[k].indices(self.grid[k])
+                #element of sl is an integer
+                elif type(sl[k])==int:
+                    ind[k] = 0
+            except IndexError:
+                break
+
+        #get corresponding number of elements accounting for uneven divisions
+        sh = []
+        for k,i in enumerate(ind):
+            if type(i)==tuple:
+                if (i[1]-i[0])%i[2]!=0: sh.append((i[1]-i[0])//i[2]+1)
+                else:                   sh.append((i[1]-i[0])//i[2])
+            elif i==None:
+                sh.append(self.grid[k])
+
+        return tuple(sh)
 
 
 
@@ -305,20 +348,9 @@ class Osiris:
         return ene / self.boxHyperVolume
 
 
-    #--------------------------------------------------------------
-    def getBinit(self):
-
-        initB = np.zeros(self.grid+(3,))
-
-        initB[...,0] = self.ext_b0[0]
-        initB[...,1] = self.ext_b0[1]
-        initB[...,2] = self.ext_b0[2]
-
-        return initB
-
 
     #--------------------------------------------------------------
-    def getB(self, time, comp, parallel=True):
+    def getB(self, time, comp, sl=slice(None), parallel=True):
 
         if   comp=="x": key = "b1"
         elif comp=="y": key = "b2"
@@ -326,13 +358,13 @@ class Osiris:
 
         dataPath = self.path+"/MS/FLD/"+key+"/"
 
-        B = self.getOnGrid(time,dataPath,None,parallel)
+        B = self.getOnGrid(time,dataPath,None,sl,parallel)
 
         return B
 
 
     #--------------------------------------------------------------
-    def getE(self, time, comp, parallel=True):
+    def getE(self, time, comp, sl=slice(None), parallel=True):
 
         if   comp=="x": key = "e1"
         elif comp=="y": key = "e2"
@@ -340,13 +372,13 @@ class Osiris:
 
         dataPath = self.path+"/MS/FLD/"+key+"/"
 
-        E = self.getOnGrid(time,dataPath,None,parallel)
+        E = self.getOnGrid(time,dataPath,None,sl,parallel)
 
         return E
 
 
     #--------------------------------------------------------------
-    def getUfluid(self, time, species, comp, parallel=True):
+    def getUfluid(self, time, species, comp, sl=slice(None), parallel=True):
 
         if   comp=="x": key = "ufl1"
         elif comp=="y": key = "ufl2"
@@ -354,13 +386,13 @@ class Osiris:
 
         dataPath = self.path+"/MS/UDIST/"+species+"/"+key+"/"
 
-        Ufluid = self.getOnGrid(time,dataPath,species,parallel)
+        Ufluid = self.getOnGrid(time,dataPath,species,sl,parallel)
 
         return Ufluid
 
 
     #--------------------------------------------------------------
-    def getUth(self, time, species, comp, parallel=True):
+    def getUth(self, time, species, comp, sl=slice(None), parallel=True):
 
         if   comp=="x": key = "uth1"
         elif comp=="y": key = "uth2"
@@ -368,26 +400,26 @@ class Osiris:
 
         dataPath = self.path+"/MS/UDIST/"+species+"/"+key+"/"
 
-        Uth = self.getOnGrid(time,dataPath,species,parallel)
+        Uth = self.getOnGrid(time,dataPath,species,sl,parallel)
 
         return Uth
 
 
     #--------------------------------------------------------------
-    def getVclassical(self, time, species, comp, parallel=True):
+    def getVclassical(self, time, species, comp, sl=slice(None), parallel=True):
 
-        Ufluid = self.getUfluid(time,species,comp,parallel)
+        Ufluid = self.getUfluid(time,species,comp,sl,parallel)
 
-        Vclassical = np.sqrt(1./(1./Ufluid**2+1.))
+        Vclassical = np.sign(Ufluid)*np.sqrt(1./(1./Ufluid**2+1.))
 
         return Vclassical
 
 
     #--------------------------------------------------------------
-    def getCharge(self, time, species, cellAv=False, parallel=True):
+    def getCharge(self, time, species, cellAv=False, sl=slice(None), parallel=True):
 
         """
-        Get species charge density C = n*q*gamma
+        Get species charge density C = n*q
         cellAv: moment obtained from macroparticles in the cell, no interpolation
         """
 
@@ -395,29 +427,29 @@ class Osiris:
         if cellAv: dataPath = self.path+"/MS/CELL_AVG/"+species+"/"+key+"/"
         else:      dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
 
-        Chr = self.getOnGrid(time,dataPath,species,parallel)
+        Chr = self.getOnGrid(time,dataPath,species,sl,parallel)
 
         return Chr
 
 
     #--------------------------------------------------------------
-    def getMass(self, time, species, cellAv=False, parallel=True):
+    def getMass(self, time, species, cellAv=False, sl=slice(None), parallel=True):
 
         """
-        Get species mass density M = n*m*gamma
+        Get species mass density M = n*m
         """
 
         key = "m"
         if cellAv: dataPath = self.path+"/MS/CELL_AVG/"+species+"/"+key+"/"
         else:      dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
 
-        M = self.getOnGrid(time,dataPath,species,parallel)
+        M = self.getOnGrid(time,dataPath,species,sl,parallel)
 
         return M
 
 
     #--------------------------------------------------------------
-    def getCurrent(self, time, species, comp, cellAv=False, parallel=True):
+    def getCurrent(self, time, species, comp, cellAv=False, sl=slice(None), parallel=True):
 
         if   comp=="x": key = "j1"
         elif comp=="y": key = "j2"
@@ -426,32 +458,46 @@ class Osiris:
         if cellAv: dataPath = self.path+"/MS/CELL_AVG/"+species+"/"+key+"/"
         else:      dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
 
-        Cur = self.getOnGrid(time,dataPath,species,parallel)
+        Cur = self.getOnGrid(time,dataPath,species,sl,parallel)
 
         return Cur
 
 
     #--------------------------------------------------------------
+    def getTotCurrent(self, time, comp, sl=slice(None), parallel=True):
+
+        if   comp=="x": key = "j1"
+        elif comp=="y": key = "j2"
+        elif comp=="z": key = "j3"
+
+        dataPath = self.path+"/MS/FLD/"+key+"/"
+
+        totCur = self.getOnGrid(time,dataPath,None,sl,parallel)
+
+        return totCur
+
+
+    #--------------------------------------------------------------
     #get species kinetic energy density
-    def getKinEnergy(self, time, species, cellAv=False, parallel=True):
+    def getKinEnergy(self, time, species, cellAv=False, sl=slice(None), parallel=True):
 
         key = "ene"
         if cellAv: dataPath = self.path+"/MS/CELL_AVG/"+species+"/"+key+"/"
         else:      dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
 
-        Enrgy = self.getOnGrid(time,dataPath,species,parallel)
+        Enrgy = self.getOnGrid(time,dataPath,species,sl,parallel)
 
         return Enrgy
 
 
     #--------------------------------------------------------------
-    def getTemp(self, time, species, comp, parallel=True):
+    def getTemp(self, time, species, comp, sl=slice(None), parallel=True):
 
         key = "T"+comp
 
         dataPath = self.path+"/MS/UDIST/"+species+"/"+key+"/"
 
-        T = self.getOnGrid(time,dataPath,species,parallel)
+        T = self.getOnGrid(time,dataPath,species,sl,parallel)
 
         return T
 

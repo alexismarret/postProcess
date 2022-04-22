@@ -82,28 +82,48 @@ def plot2D(data,time,extent,ind,figPath):
 
 
 #----------------------------------------------
-run  ="counterStreamFast"
+run  ="CS2Drm"
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
-st = slice(None,None,1)
+st = slice(None,None,10)
 x     = o.getAxis("x")[sx]
 y     = o.getAxis("y")[sx]
 time = o.getTimeAxis("iL")[st]
 
 #----------------------------------------------
-# jiLx = o.getCurrent(time, "iL", "x")
-jTotX = (o.getCurrent(time, "eL", "x")+
-         o.getCurrent(time, "eR", "x")+
-         o.getCurrent(time, "iL", "x")+
+jTotX = (o.getCurrent(time, "eL", "x") +
+         o.getCurrent(time, "eR", "x") +
+         o.getCurrent(time, "iL", "x") +
          o.getCurrent(time, "iR", "x"))
 
+jTotX2 = o.getTotCurrent(time, "x")
+
+v_el=o.getVclassical(time, "eL", "x")
+v_er=o.getVclassical(time, "eR", "x")
+v_il=o.getVclassical(time, "iL", "x")
+v_ir=o.getVclassical(time, "iR", "x")
+
+u_el=o.getUfluid(time, "eL", "x")
+u_er=o.getUfluid(time, "eR", "x")
+u_il=o.getUfluid(time, "iL", "x")
+u_ir=o.getUfluid(time, "iR", "x")
+
+jTotX3 = (o.getCharge(time, "eL") * v_el/np.sqrt(1-v_el**2) +
+          o.getCharge(time, "eR") * v_er/np.sqrt(1-v_er**2) +
+          o.getCharge(time, "iL") * v_il/np.sqrt(1-v_il**2) +
+          o.getCharge(time, "iR") * v_ir/np.sqrt(1-v_ir**2))
+
+jTotX4 = (o.getCharge(time, "eL") * u_el +
+          o.getCharge(time, "eR") * u_er +
+          o.getCharge(time, "iL") * u_il +
+          o.getCharge(time, "iR") * u_ir)
 
 #----------------------------------------------
 stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
 extent=(min(x),max(x),min(y),max(y))
 
-
+"""
 #----------------------------------------------
 path = o.path+"/plots/jTotX"
 o.setup_dir(path)
@@ -115,8 +135,40 @@ it = ((jTotX  [s[0]:s[1]],
 pf.parallel(plot2D, it, o.nbrCores, plot=True)
 
 
+#----------------------------------------------
+path = o.path+"/plots/jTotX2"
+o.setup_dir(path)
+
+it = ((jTotX2  [s[0]:s[1]],
+       time        [s[0]:s[1]],
+       extent, s[0], path) for s in stages)
+
+pf.parallel(plot2D, it, o.nbrCores, plot=True)
+"""
+
+#----------------------------------------------
+path = o.path+"/plots/jTotX3"
+o.setup_dir(path)
+
+it = ((jTotX3  [s[0]:s[1]],
+       time        [s[0]:s[1]],
+       extent, s[0], path) for s in stages)
+
+pf.parallel(plot2D, it, o.nbrCores, plot=True)
 
 
+#----------------------------------------------
+path = o.path+"/plots/jTotX4"
+o.setup_dir(path)
+
+it = ((jTotX4  [s[0]:s[1]],
+       time        [s[0]:s[1]],
+       extent, s[0], path) for s in stages)
+
+pf.parallel(plot2D, it, o.nbrCores, plot=True)
+
+
+"""
 mask = o.locFilament(time)
 
 #----------------------------------------------
@@ -130,3 +182,4 @@ it = ((jTotX_masked  [s[0]:s[1]],
        extent, s[0], path) for s in stages)
 
 pf.parallel(plot2D, it, o.nbrCores, plot=True)
+"""

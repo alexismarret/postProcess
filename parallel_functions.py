@@ -53,11 +53,13 @@ def parallel(function, it, nbrCores, plot=False):
 
 
 #--------------------------------------------------------------
-def readData(dataPath):
+def readData(dataPath, sl):
 
+    #handle needed transposition in 2D and 3D
     with h5py.File(dataPath,"r") as f:
-        #data has inverted space axis, need .T, might be wrong in 3D!
-        return f[list(f.keys())[-1]][()].T
+
+        return f[list(f.keys())[-1]][sl[::-1]].T
+
 
 
 #--------------------------------------------------------------

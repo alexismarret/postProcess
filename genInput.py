@@ -10,42 +10,41 @@ import itertools
 import sys
 
 #--------------------------------------------------------------
-dim = "2D"
-Nnodes = 1
+dim = "3D"
+Nnodes = 8
 NCPUperNodes = 64
 Nthreads = 4
 
-Ncell = np.array([1024,512,512])
-duration = 4000                 #in units of 1/w_pe
+Ncell = np.array([512,512,512])
+duration = 4800                #in units of 1/w_pe
 
 v  = 0.5                        #in units of c (=beta)
-n0 = 0.5     #density in rest frame
+n0 = 0.5     #density in proper frame
 T  = 1e-6    #in units of me * c^2 (=511 KeV) in rest frame
 
-mu = 1836
-
-B = 10.
+mu = 64
 
 dx = 1/2.       #in units of c/w_pe
 dy = 1/2.
 dz = 1/2.
 
-ppc = 64
+ppc = 8
 nPop = 4
-ndumpTot = 300     #total number of dumps wanted
+ndumpTot = 60     #total number of dumps wanted
 
 #--------------------------------------------------------------
 gamma = 1./np.sqrt(1-v**2)
 u = gamma * v
-n = n0
+n = gamma * n0
 uthe = np.sqrt(T)
 uthi = np.sqrt(T/mu)
 
+B = 10.
 t_ci_wpe = 1. / (B/(gamma*mu))
 ratio_l_i_l_e = np.sqrt(mu)
 ratio_l_d_l_e = np.sqrt(T/gamma)
 
-if   dim=="1D":
+if dim=="1D":
     Ncell = Ncell[0]
     Lx = Ncell*dx
     dt = dx
@@ -65,7 +64,7 @@ elif dim=="3D":
 if dim=="1D": dt*=0.9
 else:         dt*=0.9999
 
-nDump = int(np.ceil((duration/(dt*ndumpTot))))
+nDump = int(np.floor((duration/(dt*ndumpTot))))
 nIter = int(np.ceil(duration/dt))
 nbrPart = ppc*np.product(Ncell)*nPop
 t_estimate = 4e-7 * nIter*nbrPart /3600.
@@ -83,6 +82,7 @@ if dim!="1D":
     ind = np.argsort(Ncell)
     d = np.array([x for x in range(1,Ncores+1) if Ncores % x == 0])
 
+    #get dividors, except product of itself
     try:
         c=np.array([x for x in itertools.combinations(d,len(Ncell))
                             if np.product(x)==Ncores])
@@ -157,7 +157,7 @@ if   dim=="1D":
     print("Ncores =",Ncores)
     print("Cells per core =",np.round(Ncell/Ncores,1))
 else :
-    print("Ncores =",coresRep)
+    print("Ncores =",coresRep,"- ratio =",round(ratio[best],r))
     print("Cells per core =",np.round(Ncell/coresRep,1))
 print("-------------------------------")
 print("Estimated time:", round(t_estimate/Ncores,1),
