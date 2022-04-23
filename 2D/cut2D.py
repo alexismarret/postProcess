@@ -26,10 +26,10 @@ params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 2,
         'legend.borderpad' : 0.1,'legend.labelspacing' : 0.1, 'axes.linewidth' : 1,
         'figure.autolayout': True, 'text.usetex': True}
 plt.rcParams.update(params)
-plt.close("all")
+# plt.close("all")
 
 #----------------------------------------------
-run  ="counterStreamFast"
+run  ="CS2Drm"
 o = osiris.Osiris(run,spNorm="iL")
 
 x     = o.getAxis("x")
@@ -37,7 +37,7 @@ y     = o.getAxis("y")          #7-12
 time = o.getTimeAxis("eL")
 
 xpos = 0
-t = 1
+t = 30
 time = time[t]
 filtr = True
 #----------------------------------------------

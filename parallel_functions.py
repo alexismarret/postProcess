@@ -53,12 +53,15 @@ def parallel(function, it, nbrCores, plot=False):
 
 
 #--------------------------------------------------------------
-def readData(dataPath, sl):
+def readData(dataPath, sl, av):
 
-    #handle needed transposition in 2D and 3D
     with h5py.File(dataPath,"r") as f:
 
-        return f[list(f.keys())[-1]][sl[::-1]].T
+        #read slice of data, average, then transpose
+        if av!=None:
+            return np.mean(f[list(f.keys())[-1]][sl], axis=av).T
+        else:
+            return         f[list(f.keys())[-1]][sl].T
 
 
 

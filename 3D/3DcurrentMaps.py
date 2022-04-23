@@ -27,25 +27,23 @@ params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 2,
 plt.rcParams.update(params)
 # plt.close("all")
 
-
 #----------------------------------------------
-run  ="CS3D"
+run  ="test3D"
 o = osiris.Osiris(run)
 
 sx = slice(None,None,1)
 sy = slice(None,None,1)
 sz = slice(None,None,1)
-sl = 0
+sl = (sx,sy,sz)
 
 x     = o.getAxis("x")[sx]
 y     = o.getAxis("y")[sy]
 z     = o.getAxis("z")[sz]
 
-st = slice(0,3,1)
+st = slice(None)
 time = o.getTimeAxis()[st]
 
-time=time[0]
-
 qiL = o.getCharge(time, "iL", sl=sl, parallel=False)
+
 
 print(qiL.shape)

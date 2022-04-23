@@ -39,13 +39,12 @@ class Osiris:
         except IndexError:
             raise ValueError("Cannot find input file in '"+self.path+"'")
 
+        Ns=0
+        s=0
+        cat=""
+
         #open input file
         with open( input_file) as f:
-
-            Ns=0
-            s=0
-            cat=""
-
             for l in f.readlines():
 
                 #remove brackets, spaces, line breaks
@@ -143,24 +142,28 @@ class Osiris:
         print("-------------------------------")
         print("path =", self.path)
         print("allRuns =", self.allRuns)
+
         print("-------------------------------")
         print("grid =", self.grid)
         print("gridPosMin =", self.gridPosMin)
         print("gridPosMax =", self.gridPosMax)
         print("cellHyperVolume =", self.cellHyperVolume)
         print("boxHyperVolume =", self.boxHyperVolume)
+
         print("-------------------------------")
         print("dt =", self.dt)
         print("tmin =", self.tmin)
         print("tmax =", self.tmax)
         try: print("ext_b0 =", self.ext_b0)
         except: pass
+
         print("-------------------------------")
         print("species_name =", self.species_name)
         print("rqm =", self.rqm)
         print("ndump_facP =", self.ndump_facP)
         print("ndump_fac_ene =", self.ndump_fac_ene)
         print("ndump_fac_raw =", self.ndump_fac_raw)
+
         print("-------------------------------")
         print("ndump =", self.ndump)
         print("ndump_fac_ene_int =", self.ndump_fac_ene_int)
@@ -220,7 +223,6 @@ class Osiris:
                 #retrieve number of dumps from any of the folders in /DENSITY
                 N = len(glob.glob(self.path+"/MS/UDIST/"+species+"/"+
                                    os.listdir(self.path+"/MS/UDIST/"+species)[0]+"/*"))
-
                 delta = self.dt*self.ndump*self.ndump_facP[species_index]
 
         #fields time
@@ -244,7 +246,7 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def getOnGrid(self, time, dataPath, species, sl, parallel):
+    def getOnGrid(self, time, dataPath, species, sl, av, parallel):
 
         #handle list or single time
         try:    N = len(time)
@@ -260,10 +262,18 @@ class Osiris:
         slices = [slice(None)]*len(self.grid)
         if type(sl) in {slice,int}: sl = (sl,)
         for k,s in enumerate(sl): slices[k]=s
-        slices = tuple(slices)
+
+        #invert slices because of needed transposition
+        slices = tuple(slices)[::-1]
+
+        #adjust axis average, reversed because of transposition
+        #av input can be 1,2,3 corresponding to spatial axis only
+        if av!=None:
+            if type(av)==int: av = (av,)
+            av = self.revertAx((a-1 for a in av))
 
         #create inputs
-        it = ((dataPath + p, slices) for p in np.take(sorted(os.listdir(dataPath)), index))
+        it = ((dataPath + p, slices, av) for p in np.take(sorted(os.listdir(dataPath)), index))
 
         #parallel reading of data
         if parallel:
@@ -271,33 +281,50 @@ class Osiris:
 
         #sequential read
         else:
-            #calculate size of sliced array
-            G = np.zeros((N,)+self.getSlicedSize(slices))
-            # print(G.shape)
+            #calculate size of sliced array, invert again slices to order after transposition
+            G = np.zeros((N,)+self.getSlicedSize(slices[::-1],self.revertAx(av)))
             for i in range(N):
-                G[i] = pf.readData(next(it)[0], slices)
+                G[i] = pf.readData(next(it)[0], slices, av)
 
         return G
 
 
+    #--------------------------------------------------------------
+    def revertAx(self,a):
+
+        if a==None:
+            return self.grid
+        else:
+            a=list(a)
+            for i in range(len(a)):
+                if len(self.grid)==2:
+                    if   a[i] == 0: a[i] = 1
+                    elif a[i] == 1: a[i] = 0
+                elif len(self.grid)==3:
+                    if   a[i] == 0: a[i] = 2
+                    elif a[i] == 2: a[i] = 0
+
+            return tuple(a)
+
 
     #--------------------------------------------------------------
-    def getSlicedSize(self, sl):
+    def getSlicedSize(self, sl, av):
 
         #array containing final indices and step of sliced array
         #None if no slicing in a given direction, and 0 if only one element
         ind = [None]*len(self.grid)
-
         for k in range(len(ind)):
+            #if axis is averaged, set size to 0 and go to next axis
+            if k in av:
+                ind[k] = 0
+                continue
             try:
                 #element of sl is a slice()
-                if type(sl[k])==slice:
-                    ind[k] = sl[k].indices(self.grid[k])
-                #element of sl is an integer
-                elif type(sl[k])==int:
-                    ind[k] = 0
+                if type(sl[k])==slice: ind[k] = sl[k].indices(self.grid[k])
+                #element of sl is an integer or averaged
+                elif type(sl[k])==int: ind[k] = 0
             except IndexError:
-                break
+                pass
 
         #get corresponding number of elements accounting for uneven divisions
         sh = []
@@ -309,7 +336,6 @@ class Osiris:
                 sh.append(self.grid[k])
 
         return tuple(sh)
-
 
 
     #--------------------------------------------------------------
@@ -350,7 +376,7 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def getB(self, time, comp, sl=slice(None), parallel=True):
+    def getB(self, time, comp, sl=slice(None), av=None, parallel=True):
 
         if   comp=="x": key = "b1"
         elif comp=="y": key = "b2"
@@ -358,13 +384,13 @@ class Osiris:
 
         dataPath = self.path+"/MS/FLD/"+key+"/"
 
-        B = self.getOnGrid(time,dataPath,None,sl,parallel)
+        B = self.getOnGrid(time,dataPath,None,sl,av,parallel)
 
         return B
 
 
     #--------------------------------------------------------------
-    def getE(self, time, comp, sl=slice(None), parallel=True):
+    def getE(self, time, comp, sl=slice(None), av=None, parallel=True):
 
         if   comp=="x": key = "e1"
         elif comp=="y": key = "e2"
@@ -372,13 +398,13 @@ class Osiris:
 
         dataPath = self.path+"/MS/FLD/"+key+"/"
 
-        E = self.getOnGrid(time,dataPath,None,sl,parallel)
+        E = self.getOnGrid(time,dataPath,None,sl,av,parallel)
 
         return E
 
 
     #--------------------------------------------------------------
-    def getUfluid(self, time, species, comp, sl=slice(None), parallel=True):
+    def getUfluid(self, time, species, comp, sl=slice(None), av=None, parallel=True):
 
         if   comp=="x": key = "ufl1"
         elif comp=="y": key = "ufl2"
@@ -386,13 +412,13 @@ class Osiris:
 
         dataPath = self.path+"/MS/UDIST/"+species+"/"+key+"/"
 
-        Ufluid = self.getOnGrid(time,dataPath,species,sl,parallel)
+        Ufluid = self.getOnGrid(time,dataPath,species,sl,av,parallel)
 
         return Ufluid
 
 
     #--------------------------------------------------------------
-    def getUth(self, time, species, comp, sl=slice(None), parallel=True):
+    def getUth(self, time, species, comp, sl=slice(None), av=None, parallel=True):
 
         if   comp=="x": key = "uth1"
         elif comp=="y": key = "uth2"
@@ -400,15 +426,15 @@ class Osiris:
 
         dataPath = self.path+"/MS/UDIST/"+species+"/"+key+"/"
 
-        Uth = self.getOnGrid(time,dataPath,species,sl,parallel)
+        Uth = self.getOnGrid(time,dataPath,species,sl,av,parallel)
 
         return Uth
 
 
     #--------------------------------------------------------------
-    def getVclassical(self, time, species, comp, sl=slice(None), parallel=True):
+    def getVclassical(self, time, species, comp, sl=slice(None), av=None, parallel=True):
 
-        Ufluid = self.getUfluid(time,species,comp,sl,parallel)
+        Ufluid = self.getUfluid(time,species,comp,sl,av,parallel)
 
         Vclassical = np.sign(Ufluid)*np.sqrt(1./(1./Ufluid**2+1.))
 
@@ -416,7 +442,7 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def getCharge(self, time, species, cellAv=False, sl=slice(None), parallel=True):
+    def getCharge(self, time, species, cellAv=False, sl=slice(None), av=None, parallel=True):
 
         """
         Get species charge density C = n*q
@@ -427,13 +453,13 @@ class Osiris:
         if cellAv: dataPath = self.path+"/MS/CELL_AVG/"+species+"/"+key+"/"
         else:      dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
 
-        Chr = self.getOnGrid(time,dataPath,species,sl,parallel)
+        Chr = self.getOnGrid(time,dataPath,species,sl,av,parallel)
 
         return Chr
 
 
     #--------------------------------------------------------------
-    def getMass(self, time, species, cellAv=False, sl=slice(None), parallel=True):
+    def getMass(self, time, species, cellAv=False, sl=slice(None), av=None, parallel=True):
 
         """
         Get species mass density M = n*m
@@ -443,13 +469,13 @@ class Osiris:
         if cellAv: dataPath = self.path+"/MS/CELL_AVG/"+species+"/"+key+"/"
         else:      dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
 
-        M = self.getOnGrid(time,dataPath,species,sl,parallel)
+        M = self.getOnGrid(time,dataPath,species,sl,av,parallel)
 
         return M
 
 
     #--------------------------------------------------------------
-    def getCurrent(self, time, species, comp, cellAv=False, sl=slice(None), parallel=True):
+    def getCurrent(self, time, species, comp, cellAv=False, sl=slice(None), av=None, parallel=True):
 
         if   comp=="x": key = "j1"
         elif comp=="y": key = "j2"
@@ -458,13 +484,13 @@ class Osiris:
         if cellAv: dataPath = self.path+"/MS/CELL_AVG/"+species+"/"+key+"/"
         else:      dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
 
-        Cur = self.getOnGrid(time,dataPath,species,sl,parallel)
+        Cur = self.getOnGrid(time,dataPath,species,sl,av,parallel)
 
         return Cur
 
 
     #--------------------------------------------------------------
-    def getTotCurrent(self, time, comp, sl=slice(None), parallel=True):
+    def getTotCurrent(self, time, comp, sl=slice(None), av=None, parallel=True):
 
         if   comp=="x": key = "j1"
         elif comp=="y": key = "j2"
@@ -472,32 +498,32 @@ class Osiris:
 
         dataPath = self.path+"/MS/FLD/"+key+"/"
 
-        totCur = self.getOnGrid(time,dataPath,None,sl,parallel)
+        totCur = self.getOnGrid(time,dataPath,None,sl,av,parallel)
 
         return totCur
 
 
     #--------------------------------------------------------------
     #get species kinetic energy density
-    def getKinEnergy(self, time, species, cellAv=False, sl=slice(None), parallel=True):
+    def getKinEnergy(self, time, species, cellAv=False, sl=slice(None), av=None, parallel=True):
 
         key = "ene"
         if cellAv: dataPath = self.path+"/MS/CELL_AVG/"+species+"/"+key+"/"
         else:      dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
 
-        Enrgy = self.getOnGrid(time,dataPath,species,sl,parallel)
+        Enrgy = self.getOnGrid(time,dataPath,species,sl,av,parallel)
 
         return Enrgy
 
 
     #--------------------------------------------------------------
-    def getTemp(self, time, species, comp, sl=slice(None), parallel=True):
+    def getTemp(self, time, species, comp, sl=slice(None), av=None, parallel=True):
 
         key = "T"+comp
 
         dataPath = self.path+"/MS/UDIST/"+species+"/"+key+"/"
 
-        T = self.getOnGrid(time,dataPath,species,sl,parallel)
+        T = self.getOnGrid(time,dataPath,species,sl,av,parallel)
 
         return T
 
