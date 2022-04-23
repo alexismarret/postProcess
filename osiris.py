@@ -295,14 +295,13 @@ class Osiris:
         if a==None:
             return self.grid
         else:
+            if len(self.grid)==2:   val = 1
+            elif len(self.grid)==3: val = 2
+
             a=list(a)
             for i in range(len(a)):
-                if len(self.grid)==2:
-                    if   a[i] == 0: a[i] = 1
-                    elif a[i] == 1: a[i] = 0
-                elif len(self.grid)==3:
-                    if   a[i] == 0: a[i] = 2
-                    elif a[i] == 2: a[i] = 0
+                if   a[i] == 0: a[i] = val
+                elif a[i] == val: a[i] = 0
 
             return tuple(a)
 
@@ -313,18 +312,12 @@ class Osiris:
         #array containing final indices and step of sliced array
         #None if no slicing in a given direction, and 0 if only one element
         ind = [None]*len(self.grid)
+
         for k in range(len(ind)):
             #if axis is averaged, set size to 0 and go to next axis
-            if k in av:
-                ind[k] = 0
-                continue
-            try:
-                #element of sl is a slice()
-                if type(sl[k])==slice: ind[k] = sl[k].indices(self.grid[k])
-                #element of sl is an integer or averaged
-                elif type(sl[k])==int: ind[k] = 0
-            except IndexError:
-                pass
+            if (k in av) or (type(sl[k])==int): ind[k] = 0
+            #element of sl is a slice()
+            elif type(sl[k])==slice: ind[k] = sl[k].indices(self.grid[k])
 
         #get corresponding number of elements accounting for uneven divisions
         sh = []
