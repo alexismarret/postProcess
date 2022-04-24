@@ -295,9 +295,7 @@ class Osiris:
         if a==None:
             return self.grid
         else:
-            if len(self.grid)==2:   val = 1
-            elif len(self.grid)==3: val = 2
-
+            val = len(self.grid)-1
             a=list(a)
             for i in range(len(a)):
                 if   a[i] == 0: a[i] = val

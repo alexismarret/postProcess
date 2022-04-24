@@ -43,7 +43,7 @@ z     = o.getAxis("z")[sz]
 st = slice(None)
 time = o.getTimeAxis()[st]
 
-qiL = o.getCharge(time, "iL", sl=sl, av=1,parallel=False)
+qiL = o.getCharge(time, "iL", sl=sl, av=0,parallel=False)
 
 
 print(qiL.shape)
