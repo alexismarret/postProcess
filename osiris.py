@@ -281,7 +281,8 @@ class Osiris:
 
         #sequential read
         else:
-            #calculate size of sliced array, invert again slices to order after transposition
+            #calculate size of sliced array, invert again slices and averaged
+            #axis to order after transposition
             G = np.zeros((N,)+self.getSlicedSize(slices[::-1],self.revertAx(av)))
             for i in range(N):
                 G[i] = pf.readData(next(it)[0], slices, av)
@@ -312,7 +313,7 @@ class Osiris:
         ind = [None]*len(self.grid)
 
         for k in range(len(ind)):
-            #if axis is averaged, set size to 0 and go to next axis
+            #if axis is averaged or single element, set size to 0 and go to next axis
             if (k in av) or (type(sl[k])==int): ind[k] = 0
             #element of sl is a slice()
             elif type(sl[k])==slice: ind[k] = sl[k].indices(self.grid[k])

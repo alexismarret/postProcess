@@ -115,15 +115,16 @@ if dim!="1D":
     coresRep=np.zeros(len(Ncell),dtype=int)
     for it,index in enumerate(ind): coresRep[index] = c[best,it]
 
+
 #--------------------------------------------------------------
 r=5
 print("-------------------------------")
-print("Nx =",Ncell[0])
-if   dim=="2D":
-    print("Ny =",Ncell[1])
+if dim=="1D":
+    print("Nx =",Ncell[0])
+elif   dim=="2D":
+    print("Nx =",Ncell[0],"| Ny =",Ncell[1])
 elif dim=="3D":
-    print("Ny =",Ncell[1])
-    print("Nz =",Ncell[2])
+    print("Nx =",Ncell[0],"| Ny =",Ncell[1],"| Nz =",Ncell[2])
 
 print("Lx =",Lx,"[c/wpe] <->",round(Lx/ratio_l_i_l_e,1),"[c/wpi]")
 if   dim=="2D":
@@ -131,10 +132,10 @@ if   dim=="2D":
 elif dim=="3D":
     print("Ly =",Lx,"[c/wpe] <->",round(Ly/ratio_l_i_l_e,1),"[c/wpi]")
     print("Lz =",Lx,"[c/wpe] <->",round(Lz/ratio_l_i_l_e,1),"[c/wpi]")
-
 print("dt =",round(dt,r))
 print("nDump =",nDump)
 print("num_par_max =",int(3*nbrPart/(Nthreads*Ncores)))
+
 print("-------------------------------")
 print("n =",round(n,r))
 print("u =",round(u,r))
@@ -146,19 +147,21 @@ print("-------------------------------")
 print("mu =",mu)
 print("li/le =",round(ratio_l_i_l_e,r))
 print("lD/le =",round(ratio_l_d_l_e,r))
+
 print("-------------------------------")
 print("tFinal =",round(duration/np.sqrt(mu),1),"[1/wpi]")
 print("dtDump =",round(duration/np.sqrt(mu)/ndumpTot,1),"[1/wpi]")
 print("nIter =",nIter)
+
 print("-------------------------------")
 print("nbrPart =",round(nbrPart/1e6,2),"millions")
-
-if   dim=="1D":
+if dim=="1D":
     print("Ncores =",Ncores)
     print("Cells per core =",np.round(Ncell/Ncores,1))
-else :
+else:
     print("Ncores =",coresRep,"- ratio =",round(ratio[best],r))
     print("Cells per core =",np.round(Ncell/coresRep,1))
+
 print("-------------------------------")
 print("Estimated time:", round(t_estimate/Ncores,1),
       "hours on", Ncores,"CPU cores -",
