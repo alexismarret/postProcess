@@ -82,7 +82,7 @@ def plot2D(data,time,extent,ind,figPath):
 
 
 #----------------------------------------------
-run  ="CS2Dhr"
+run  ="CS2Drmhr"
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
@@ -92,12 +92,12 @@ y     = o.getAxis("y")[sx]
 time = o.getTimeAxis("iL")[st]
 
 #----------------------------------------------
-# jTotX = (o.getCurrent(time, "eL", "x") +
-#          o.getCurrent(time, "eR", "x") +
-#          o.getCurrent(time, "iL", "x") +
-#          o.getCurrent(time, "iR", "x"))
+jTotX = (o.getCurrent(time, "eL", "x") +
+          o.getCurrent(time, "eR", "x") +
+          o.getCurrent(time, "iL", "x") +
+          o.getCurrent(time, "iR", "x"))
 
-jTotX2 = o.getTotCurrent(time, "x")
+# jTotX2 = o.getTotCurrent(time, "x")
 
 # v_el=o.getVclassical(time, "eL", "x")
 # v_er=o.getVclassical(time, "eR", "x")
@@ -123,7 +123,7 @@ jTotX2 = o.getTotCurrent(time, "x")
 stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
 extent=(min(x),max(x),min(y),max(y))
 
-"""
+
 #----------------------------------------------
 path = o.path+"/plots/jTotX"
 o.setup_dir(path)
@@ -145,7 +145,6 @@ it = ((jTotX2  [s[0]:s[1]],
 
 pf.parallel(plot2D, it, o.nbrCores, plot=True)
 
-"""
 #----------------------------------------------
 path = o.path+"/plots/jTotX3"
 o.setup_dir(path)

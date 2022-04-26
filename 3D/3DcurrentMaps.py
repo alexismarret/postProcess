@@ -28,7 +28,7 @@ plt.rcParams.update(params)
 # plt.close("all")
 
 #----------------------------------------------
-run  ="test3D"
+run  ="CS3D"
 o = osiris.Osiris(run)
 
 sx = slice(None,None,1)
@@ -41,6 +41,7 @@ y     = o.getAxis("y")[sy]
 z     = o.getAxis("z")[sz]
 
 st = slice(None)
+st=3
 time = o.getTimeAxis()[st]
 
 qiL = o.getCharge(time, "iL", sl=sl, av=0,parallel=False)

@@ -8,7 +8,6 @@ Created on Thu Mar 10 14:10:26 2022
 
 import glob
 import os
-import sys
 import numpy as np
 import parallel_functions as pf
 

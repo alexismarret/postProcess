@@ -80,11 +80,11 @@ def plot2D(data,time,extent,ind,figPath):
 
 
 #----------------------------------------------
-run  ="CS2Drm"
+run  ="CS2Drmhr"
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
-st = slice(None,None,1)
+st = slice(None,None,2)
 x     = o.getAxis("x")[sx]
 y     = o.getAxis("y")[sx]
 time = o.getTimeAxis("iL")[st]
@@ -97,7 +97,7 @@ mu = o.getRatioQM("iL")
 # rZ = (o.getUth(time, "eL", "z") / (o.getUth(time, "iL", "z") * mu))**2
 
 # TeX = (o.getUth(time, "eL", "x"))**2
-TiX = (o.getUth(time, "iL", "y") )**2 * mu
+TiX = (o.getUth(time, "iL", "x") )**2 * mu
 
 # TeY = (o.getUth(time, "eL", "y"))**2
 # TiY = (o.getUth(time, "iL", "y") * mu)**2
@@ -110,7 +110,7 @@ stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
 extent=(min(x),max(x),min(y),max(y))
 
 #----------------------------------------------
-path = o.path+"/plots/TiY"
+path = o.path+"/plots/TiX"
 o.setup_dir(path)
 
 it = ((TiX  [s[0]:s[1]],

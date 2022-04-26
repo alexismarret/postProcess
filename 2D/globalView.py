@@ -22,7 +22,7 @@ plt.rcParams.update(params)
 # plt.close("all")
 
 #----------------------------------------------
-run  ="CS2Drm"
+run  ="CS2Drmhr"
 o = osiris.Osiris(run,spNorm="iL")
 
 st = slice(None,None,1)
@@ -55,13 +55,19 @@ TiLy = np.mean(o.getUth(time, "iL", "y")**2,axis=(1,2)) * o.getRatioQM("iL")
 TeLy = np.mean(o.getUth(time, "eL", "y")**2,axis=(1,2))
 # TeRy = np.mean(o.getUth(time, "eR", "y")**2,axis=(1,2))
 
-normB = np.mean(o.getB(time,"x")**2+
-                o.getB(time,"y")**2+
-                o.getB(time,"z")**2,axis=(1,2))/2.
+# normB = np.mean(o.getB(time,"x")**2+
+#                 o.getB(time,"y")**2+
+#                 o.getB(time,"z")**2,axis=(1,2))/2.
 
-normE = np.mean(o.getE(time,"x")**2+
-                o.getE(time,"y")**2+
-                o.getE(time,"z")**2,axis=(1,2))/2.
+# normE = np.mean(o.getE(time,"x")**2+
+#                 o.getE(time,"y")**2+
+#                 o.getE(time,"z")**2,axis=(1,2))/2.
+
+E = o.getEnergyIntegr(time, "E")
+Ex,Ey = E[:,0],E[:,1]
+B = np.sum(o.getEnergyIntegr(time, "B"),axis=-1)
+
+
 
 # GRavwB = np.gradient(normB)
 
@@ -87,11 +93,12 @@ fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300,sharex=True,sharey=True)
 #     sub1.axvline(time[l],color="gray",linestyle="--",linewidth=0.7)
 #     sub2.axvline(time[l],color="gray",linestyle="--",linewidth=0.7)
 
-sub1.semilogy(time,normB,color="g",label=r"$\mathcal{E}_B$")
+sub1.semilogy(time,B,color="g",label=r"$\mathcal{E}_B$")
 # sub2.semilogy(time,normB,color="g",label=r"$B$")
 
 # sub1.plot(time,viR,color="cyan")
-sub1.semilogy(time,normE,color="g",linestyle="--",label=r"$\mathcal{E}_E$")
+sub1.semilogy(time,Ex,color="g",linestyle="--",label=r"$\mathcal{E}_{Ex}$")
+sub1.semilogy(time,Ey,color="cyan",linestyle="--",label=r"$\mathcal{E}_{Ey}$")
 # sub2.semilogy(time,normE,color="g",linestyle="--",label=r"$E$")
 
 sub1.semilogy(time,UiL,color="b",label=r"$U_{iL|x}$")
@@ -126,3 +133,6 @@ sub1.set_xlabel(r"$t\ [\omega_{pi}^{-1}]$")
 # r = index_ew/index_iw
 sub1.legend(frameon=False,ncol=4)
 # sub2.legend(frameon=False)
+
+
+plt.savefig(o.path+"/plots/globalView.png",dpi="figure")

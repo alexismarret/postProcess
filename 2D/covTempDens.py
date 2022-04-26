@@ -21,11 +21,11 @@ plt.rcParams.update(params)
 # plt.close("all")
 
 #----------------------------------------------
-run  ="CS2Drm"
+run  ="CS2Drmhr"
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
-st = slice(None,-1,1)
+st = slice(None,None,1)
 x    = o.getAxis("x")[sx]
 y    = o.getAxis("y")[sx]
 time = o.getTimeAxis("eL")[st]
@@ -51,29 +51,29 @@ def cov(a,b):
     return c
 
 #----------------------------------------------
-# cov_iL = cov(o.getUth(time,"iL","y")**2*o.getRatioQM("iL"),
-#               o.getCharge(time, "iL"))
-
-# cov_iR = cov(o.getUth(time,"iR","y")**2*o.getRatioQM("iR"),
-#               o.getCharge(time,"iR"))
-
-# cov_eL = cov(o.getUth(time,"eL","y")**2,
-#               o.getCharge(time,"eL") *-1)
-
-# cov_eR = cov(o.getUth(time,"eR","y")**2,
-#               o.getCharge(time,"eR") *-1)
-Ex =  np.abs(o.getE(time,"y"))
 cov_iL = cov(o.getUth(time,"iL","x")**2*o.getRatioQM("iL"),
-              Ex)
+              o.getCharge(time, "iL"))
 
 cov_iR = cov(o.getUth(time,"iR","x")**2*o.getRatioQM("iR"),
-              Ex)
+              o.getCharge(time,"iR"))
 
 cov_eL = cov(o.getUth(time,"eL","x")**2,
-              Ex)
+              o.getCharge(time,"eL") *-1)
 
 cov_eR = cov(o.getUth(time,"eR","x")**2,
-              Ex)
+              o.getCharge(time,"eR") *-1)
+# Ex =  np.abs(o.getE(time,"y"))
+# cov_iL = cov(o.getUth(time,"iL","x")**2*o.getRatioQM("iL"),
+#               Ex)
+
+# cov_iR = cov(o.getUth(time,"iR","x")**2*o.getRatioQM("iR"),
+#               Ex)
+
+# cov_eL = cov(o.getUth(time,"eL","x")**2,
+#               Ex)
+
+# cov_eR = cov(o.getUth(time,"eR","x")**2,
+#               Ex)
 
 #----------------------------------------------
 fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
