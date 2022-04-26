@@ -10,27 +10,27 @@ import itertools
 import sys
 
 #--------------------------------------------------------------
-dim = "3D"
-Nnodes = 8
+dim = "2D"
+Nnodes = 4
 NCPUperNodes = 64
 Nthreads = 4
 
-Ncell = np.array([512,512,512])
-duration = 4800                #in units of 1/w_pe
+Ncell = np.array([1024,512,512])
+duration = 50                #in units of 1/w_pi
 
 v  = 0.5                        #in units of c (=beta)
 n0 = 0.5     #density in proper frame
 T  = 1e-6    #in units of me * c^2 (=511 KeV) in rest frame
 
-mu = 64
+mu = 1836
 
-dx = 1/2.       #in units of c/w_pe
-dy = 1/2.
-dz = 1/2.
+dx = 1/4.       #in units of c/w_pe
+dy = 1/4.
+dz = 1/4.
 
-ppc = 8
+ppc = 64
 nPop = 4
-ndumpTot = 60     #total number of dumps wanted
+ndumpTot = 300     #total number of dumps wanted
 
 #--------------------------------------------------------------
 gamma = 1./np.sqrt(1-v**2)
@@ -64,10 +64,11 @@ elif dim=="3D":
 if dim=="1D": dt*=0.9
 else:         dt*=0.9999
 
+duration = np.ceil(duration*np.sqrt(mu)) #convert duration to 1/wpe
 nDump = int(np.floor((duration/(dt*ndumpTot))))
 nIter = int(np.ceil(duration/dt))
 nbrPart = ppc*np.product(Ncell)*nPop
-t_estimate = 4e-7 * nIter*nbrPart /3600.
+t_estimate = 4e-7 * nIter*nbrPart /3600. *2
 size = 32./8. / (1024.**3) * np.product(Ncell)*ndumpTot
 Ncores = Nnodes*NCPUperNodes
 
@@ -149,8 +150,10 @@ print("li/le =",round(ratio_l_i_l_e,r))
 print("lD/le =",round(ratio_l_d_l_e,r))
 
 print("-------------------------------")
-print("tFinal =",round(duration/np.sqrt(mu),1),"[1/wpi]")
-print("dtDump =",round(duration/np.sqrt(mu)/ndumpTot,1),"[1/wpi]")
+print("tFinal =",round(duration,1),"[1/wpe] <->",
+                 round(duration/np.sqrt(mu),1),"[1/wpi]")
+print("dtDump =",round(duration/ndumpTot,1),"[1/wpe] <->",
+                 round(duration/np.sqrt(mu)/ndumpTot,1),"[1/wpi]")
 print("nIter =",nIter)
 
 print("-------------------------------")

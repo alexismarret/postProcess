@@ -35,12 +35,12 @@ time = o.getTimeAxis()[st]
 # kin_il = o.getEnergyIntegr(time, qty="kin", species="iL")
 # kin_ir = o.getEnergyIntegr(time, qty="kin", species="iR")
 
-UiL = np.mean(o.getUfluid(time, "iL", "x"),axis=(1,2))
+UiL = o.getUfluid(time, "iL", "x",av=(1,2))
 # UiR = np.mean(o.getUfluid(time, "iR", "x"),axis=(1,2))
 
 # viR = np.mean(o.getVclassical(time, "iL", "x"),axis=(1,2))
 
-UeL = np.mean(o.getUfluid(time, "eL", "x"),axis=(1,2))
+UeL = o.getUfluid(time, "eL", "x",av=(1,2))
 # UeR = np.mean(o.getUfluid(time, "eR", "x"),axis=(1,2))
 
 TiLx = np.mean(o.getUth(time, "iL", "x")**2,axis=(1,2)) * o.getRatioQM("iL")

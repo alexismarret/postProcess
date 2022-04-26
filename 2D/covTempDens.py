@@ -21,11 +21,11 @@ plt.rcParams.update(params)
 # plt.close("all")
 
 #----------------------------------------------
-run  ="counterStreamFast"
+run  ="CS2Drm"
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
-st = slice(None,None,1)
+st = slice(None,-1,1)
 x    = o.getAxis("x")[sx]
 y    = o.getAxis("y")[sx]
 time = o.getTimeAxis("eL")[st]
@@ -43,35 +43,37 @@ def cov(a,b):
     kx = a[:,v,v][:,None,None]
     ky = b[:,v,v][:,None,None]
 
-    c = (np.mean((a-kx) * (b-ky),axis=(1,2)) -
-         np.mean(a-kx,axis=(1,2)) * np.mean(b-ky,axis=(1,2)))
+    ax=(1,2)
+    c = ((np.mean((a-kx) * (b-ky),axis=ax) -
+         np.mean(a-kx,axis=ax) * np.mean(b-ky,axis=ax)) /
+         (np.std((a),axis=ax)*np.std((b),axis=ax)))
 
     return c
 
 #----------------------------------------------
+# cov_iL = cov(o.getUth(time,"iL","y")**2*o.getRatioQM("iL"),
+#               o.getCharge(time, "iL"))
+
+# cov_iR = cov(o.getUth(time,"iR","y")**2*o.getRatioQM("iR"),
+#               o.getCharge(time,"iR"))
+
+# cov_eL = cov(o.getUth(time,"eL","y")**2,
+#               o.getCharge(time,"eL") *-1)
+
+# cov_eR = cov(o.getUth(time,"eR","y")**2,
+#               o.getCharge(time,"eR") *-1)
+Ex =  np.abs(o.getE(time,"y"))
 cov_iL = cov(o.getUth(time,"iL","x")**2*o.getRatioQM("iL"),
-              o.getCharge(time, "iL"))
+              Ex)
 
 cov_iR = cov(o.getUth(time,"iR","x")**2*o.getRatioQM("iR"),
-              o.getCharge(time,"iR"))
+              Ex)
 
 cov_eL = cov(o.getUth(time,"eL","x")**2,
-              o.getCharge(time,"eL") *-1)
+              Ex)
 
 cov_eR = cov(o.getUth(time,"eR","x")**2,
-              o.getCharge(time,"eR") *-1)
-# Ex =  (o.getE(time,"x"))
-# cov_iL = cov(o.getUth(time,"iL","x")**2*o.getRatioQM("iL"),
-#              Ex)
-
-# cov_iR = cov(o.getUth(time,"iR","x")**2*o.getRatioQM("iR"),
-#               Ex)
-
-# cov_eL = cov(o.getUth(time,"eL","x")**2,
-#               Ex)
-
-# cov_eR = cov(o.getUth(time,"eR","x")**2,
-#               Ex)
+              Ex)
 
 #----------------------------------------------
 fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
@@ -83,7 +85,8 @@ sub1.plot(time,cov_eL,color="g",label="eL")
 sub1.plot(time,cov_eR,color="orange",label="eR")
 
 sub1.set_xlabel(r"$t\ [\omega_{pi}^{-1}]$")
-sub1.set_ylabel(r"$Cov(T(x,y),E(x,y))$")
+sub1.set_ylabel(r"$Cov(T(x,y),n(x,y))$")
 
+# sub1.set_ylim(-0.0015,0.0015)
 sub1.axhline(0,color="gray",linestyle="--",linewidth=0.7)
 sub1.legend(frameon=False)

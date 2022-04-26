@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon Mar 21 17:39:37 2022
+Created on Fri Mar 25 16:33:01 2022
 
 @author: alexis
 """
@@ -22,7 +22,7 @@ params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 2,
         'lines.markersize' : 3, 'xtick.labelsize' : 9, 'ytick.labelsize' : 9,
         'font.size': 9,'legend.fontsize': 9, 'legend.handlelength' : 1.5,
         'legend.borderpad' : 0.1,'legend.labelspacing' : 0.1, 'axes.linewidth' : 1,
-         'text.usetex': True}
+        'text.usetex': True}
 plt.rcParams.update(params)
 # plt.close("all")
 
@@ -32,18 +32,21 @@ def plot2D(data,time,extent,ind,figPath):
     fig, (sub1) = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
     # fig.subplots_adjust(bottom=0.09)
 
+    sub1.set_xscale('log')
+    sub1.set_yscale('log')
+
     im=sub1.imshow(data[0,...].T,
                    extent=extent,origin="lower",
                    aspect=1,
-                   cmap="hot",norm=LogNorm(vmin = 1e-3, vmax = 1e-1),
+                   cmap="hot",norm=LogNorm(vmin = 1e-1, vmax = 1e2),
                    interpolation="None")
 
     divider = make_axes_locatable(sub1)
     cax = divider.append_axes("right", size="5%", pad=0.1)
     fig.colorbar(im, cax=cax)
 
-    sub1.locator_params(nbins=5,axis='y')
-    sub1.locator_params(nbins=5,axis='x')
+    # sub1.locator_params(nbins=5,axis='y')
+    # sub1.locator_params(nbins=5,axis='x')
 
     sub1.set_xlabel(r'$x\ [c/\omega_{pi}]$')
     sub1.set_ylabel(r'$y\ [c/\omega_{pi}]$')
@@ -78,48 +81,59 @@ def plot2D(data,time,extent,ind,figPath):
 
     return
 
-
 #----------------------------------------------
-run  ="CS2Drm"
+run  ="counterStream"
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
-st = slice(None,None,1)
-x     = o.getAxis("x")[sx]
-y     = o.getAxis("y")[sx]
-time = o.getTimeAxis("iL")[st]
-
-mu = o.getRatioQM("iL")
+st = slice(None,None,2)
+x    = o.getAxis("x")[sx]
+y    = o.getAxis("y")[sx]
+time = o.getTimeAxis()[st]
 
 #----------------------------------------------
-# rTiX= (o.getUth(time, "iL", "x") / (o.getUth(time, "iR", "x")))**2
-# rY = (o.getUth(time, "eL", "y") / (o.getUth(time, "iL", "y") * mu))**2
-# rZ = (o.getUth(time, "eL", "z") / (o.getUth(time, "iL", "z") * mu))**2
+normB = np.sqrt(o.getB(time,"x")**2+
+                o.getB(time,"y")**2+
+                o.getB(time,"z")**2)
 
-# TeX = (o.getUth(time, "eL", "x"))**2
-TiX = (o.getUth(time, "iL", "y") )**2 * mu
+normE = np.sqrt(o.getE(time,"x")**2+
+                o.getE(time,"y")**2+
+                o.getE(time,"z")**2)
 
-# TeY = (o.getUth(time, "eL", "y"))**2
-# TiY = (o.getUth(time, "iL", "y") * mu)**2
+axis_kX = np.fft.rfftfreq(len(x),x[1]-x[0])[1:] *2*np.pi
+axis_kY = np.fft.rfftfreq(len(y),y[1]-y[0])[1:] *2*np.pi
 
-# TeZ = (o.getUth(time, "eL", "z"))**2
-# TiZ = (o.getUth(time, "iL", "z") * mu)**2
 
-#----------------------------------------------
+ftB = np.zeros((len(time),len(x),len(y)))
+ftE = np.zeros((len(time),len(x),len(y)))
+
+for i in range(len(time)):
+    ftB[i] = np.abs(np.fft.fft2(normB[i]))
+    ftE[i] = np.abs(np.fft.fft2(normE[i]))
+
+ftB = ftB[:,len(x)//2:,len(y)//2:]
+ftE = ftE[:,len(x)//2:,len(y)//2:]
+
 stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
-extent=(min(x),max(x),min(y),max(y))
+extent=(min(axis_kX),max(axis_kX),min(axis_kY),max(axis_kY))
+
 
 #----------------------------------------------
-path = o.path+"/plots/TiY"
+path = o.path+"/plots/fftB"
 o.setup_dir(path)
 
-it = ((TiX  [s[0]:s[1]],
+it = ((ftB  [s[0]:s[1]],
         time        [s[0]:s[1]],
         extent, s[0], path) for s in stages)
 
-
 pf.parallel(plot2D, it, o.nbrCores, plot=True)
 
+#----------------------------------------------
+path = o.path+"/plots/fftE"
+o.setup_dir(path)
 
+it = ((ftE  [s[0]:s[1]],
+        time        [s[0]:s[1]],
+        extent, s[0], path) for s in stages)
 
-
+pf.parallel(plot2D, it, o.nbrCores, plot=True)
