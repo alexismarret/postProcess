@@ -275,16 +275,18 @@ class Osiris:
         it = ((dataPath + p, slices, av) for p in np.take(sorted(os.listdir(dataPath)), index))
 
         #parallel reading of data
-        if parallel:
-            G = pf.parallel(pf.readData, it, self.nbrCores, plot=False)
+        if parallel: G = pf.parallel(pf.readData, it, self.nbrCores, plot=False)
 
         #sequential read
         else:
-            #calculate size of sliced array, invert again slices and averaged
-            #axis to order after transposition
-            G = np.zeros((N,)+self.getSlicedSize(slices[::-1],self.revertAx(av)))
-            for i in range(N):
-                G[i] = pf.readData(next(it)[0], slices, av)
+            if N>1:
+                #calculate size of sliced array, invert again slices and averaged
+                #axis to order after transposition
+                G = np.zeros((N,)+self.getSlicedSize(slices[::-1],self.revertAx(av)))
+                for i in range(N):
+                    G[i] = pf.readData(next(it)[0], slices, av)
+            else:
+                G = pf.readData(next(it)[0], slices, av)
 
         return G
 
@@ -296,7 +298,7 @@ class Osiris:
             return self.grid
         else:
             val = len(self.grid)-1
-            a=list(a)
+            a = list(a)
             for i in range(len(a)):
                 if   a[i] == 0: a[i] = val
                 elif a[i] == val: a[i] = 0

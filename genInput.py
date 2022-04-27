@@ -10,27 +10,28 @@ import itertools
 import sys
 
 #--------------------------------------------------------------
-dim = "2D"
-Nnodes = 4
+dim = "3D"
+Nnodes = 8
 NCPUperNodes = 64
 Nthreads = 4
 
-Ncell = np.array([1024,512,512])
-duration = 50                #in units of 1/w_pi
+Ncell = np.array([512,512,512])
+duration = 400.                #in units of 1/w_pi
 
-v  = 0.5                        #in units of c (=beta)
+v  = 0.5                     #in units of c (=beta)
 n0 = 0.5     #density in proper frame
 T  = 1e-6    #in units of me * c^2 (=511 KeV) in rest frame
 
-mu = 1836
+mu = 32
 
-dx = 1/4.       #in units of c/w_pe
-dy = 1/4.
-dz = 1/4.
+dx = 1/2.       #in units of c/w_pe
+dy = 1/2.
+dz = 1/2.
 
-ppc = 64
+ppc = 8
 nPop = 4
-ndumpTot = 300     #total number of dumps wanted
+
+dtDump = 10.    #dump time step desired in units of 1/w_pi
 
 #--------------------------------------------------------------
 gamma = 1./np.sqrt(1-v**2)
@@ -43,6 +44,13 @@ B = 10.
 t_ci_wpe = 1. / (B/(gamma*mu))
 ratio_l_i_l_e = np.sqrt(mu)
 ratio_l_d_l_e = np.sqrt(T/gamma)
+
+gammaIfil = v  #[wpi]
+lambdaIfil = 2*np.pi   #[c/wpi]
+R0 = lambdaIfil*np.sqrt(mu)/4  #typical radius of ion filament [c/wpe]
+gammaKink = 3/2 * v * np.sqrt(1/(mu*R0))    #[wpi]
+lambdaKink = 2*np.pi * 3/2 * np.sqrt(R0)    #[c/wpi]
+tEq = (8/gammaIfil + 8/gammaKink)*2  #assuming 8 e-foldings and an empyrical factor 2 correction
 
 if dim=="1D":
     Ncell = Ncell[0]
@@ -64,11 +72,12 @@ elif dim=="3D":
 if dim=="1D": dt*=0.9
 else:         dt*=0.9999
 
-duration = np.ceil(duration*np.sqrt(mu)) #convert duration to 1/wpe
-nDump = int(np.floor((duration/(dt*ndumpTot))))
-nIter = int(np.ceil(duration/dt))
+nIter = int(np.ceil(duration*np.sqrt(mu)/dt))
+ndumpTot = int(np.ceil(duration/dtDump))      #total number of dumps desired
+nDump = int(np.floor(nIter/ndumpTot))
+
 nbrPart = ppc*np.product(Ncell)*nPop
-t_estimate = 4e-7 * nIter*nbrPart /3600. *2
+t_estimate = 4e-7 * nIter*nbrPart /3600. *2   #400ns per part per dt, factor 2 correction
 size = 32./8. / (1024.**3) * np.product(Ncell)*ndumpTot
 Ncores = Nnodes*NCPUperNodes
 
@@ -118,7 +127,7 @@ if dim!="1D":
 
 
 #--------------------------------------------------------------
-r=6
+r=5
 print("-------------------------------")
 if dim=="1D":
     print("Nx =",Ncell[0])
@@ -150,11 +159,19 @@ print("li/le =",round(ratio_l_i_l_e,r))
 print("lD/le =",round(ratio_l_d_l_e,r))
 
 print("-------------------------------")
-print("tFinal =",round(duration,1),"[1/wpe] <->",
-                 round(duration/np.sqrt(mu),1),"[1/wpi]")
-print("dtDump =",round(duration/ndumpTot,1),"[1/wpe] <->",
-                 round(duration/np.sqrt(mu)/ndumpTot,1),"[1/wpi]")
+
+print("gammaIfil =",round(gammaIfil,r),"[wpi]")
+print("gammaKink =",round(gammaKink,r),"[wpi]")
+print("lambdaKink =",round(lambdaKink,r),"[c/wpi]")
+print("tEq =",round(tEq,1),"[1/wpi]")
+
+print("-------------------------------")
+print("tFinal =",round(duration*np.sqrt(mu)),"[1/wpe] <->",
+                 round(duration,1),"[1/wpi]")
+print("dtDump =",round(dtDump*np.sqrt(mu),1),"[1/wpe] <->",
+                 dtDump,"[1/wpi]")
 print("nIter =",nIter)
+print("ndumpTot =",ndumpTot)
 
 print("-------------------------------")
 print("nbrPart =",round(nbrPart/1e6,2),"millions")
