@@ -23,7 +23,7 @@ params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 2,
         'lines.markersize' : 3, 'xtick.labelsize' : 9, 'ytick.labelsize' : 9,
         'font.size': 9,'legend.fontsize': 9, 'legend.handlelength' : 1.5,
         'legend.borderpad' : 0.1,'legend.labelspacing' : 0.1, 'axes.linewidth' : 1,
-         'text.usetex': True}
+         'figure.autolayout': True,'text.usetex': True}
 plt.rcParams.update(params)
 # plt.close("all")
 
@@ -34,7 +34,7 @@ o = osiris.Osiris(run,spNorm="iL")
 sx = slice(None,None,1)
 sy = slice(None,None,1)
 sz = slice(None,None,1)
-sl = (sx,sy,1)
+sl = (0,sy,sz)
 
 x     = o.getAxis("x")[sx]
 y     = o.getAxis("y")[sy]
@@ -67,8 +67,8 @@ fig.colorbar(im, cax=cax)
 sub1.locator_params(nbins=5,axis='y')
 sub1.locator_params(nbins=5,axis='x')
 
-sub1.set_xlabel(r'$x\ [c/\omega_{pi}]$')
-sub1.set_ylabel(r'$y\ [c/\omega_{pi}]$')
+sub1.set_xlabel(r'$y\ [c/\omega_{pi}]$')
+sub1.set_ylabel(r'$z\ [c/\omega_{pi}]$')
 
 sub1.text(1, 1.05,
           r"$J\ [en_ec]$",
@@ -99,3 +99,5 @@ for i in range(len(time)):
 
     plt.savefig(path+"/plot-{i}-time-{t}.png".format(i=i,t=time[i]),dpi="figure")
 
+#----------------------------------------------
+plt.close()

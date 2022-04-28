@@ -10,7 +10,7 @@ import glob
 import os
 import numpy as np
 import parallel_functions as pf
-
+import time as ti
 
 class Osiris:
 
@@ -263,6 +263,7 @@ class Osiris:
         for k,s in enumerate(sl): slices[k]=s
 
         #invert slices because of needed transposition
+        #slices performance can be worse than reading everything
         slices = tuple(slices)[::-1]
 
         #adjust axis average, reversed because of transposition
@@ -274,19 +275,21 @@ class Osiris:
         #create inputs
         it = ((dataPath + p, slices, av) for p in np.take(sorted(os.listdir(dataPath)), index))
 
-        #parallel reading of data
-        if parallel: G = pf.parallel(pf.readData, it, self.nbrCores, plot=False)
-
-        #sequential read
-        else:
-            if N>1:
+        #multiple values read
+        if N>1:
+            #parallel reading of data
+            if parallel:
+                G = pf.parallel(pf.readData, it, self.nbrCores, plot=False)
+            #sequential reading of data
+            else:
                 #calculate size of sliced array, invert again slices and averaged
                 #axis to order after transposition
                 G = np.zeros((N,)+self.getSlicedSize(slices[::-1],self.revertAx(av)))
                 for i in range(N):
                     G[i] = pf.readData(next(it)[0], slices, av)
-            else:
-                G = pf.readData(next(it)[0], slices, av)
+        #single value read
+        else:
+            G = pf.readData(next(it)[0], slices, av)
 
         return G
 

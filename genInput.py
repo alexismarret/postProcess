@@ -16,7 +16,7 @@ NCPUperNodes = 64
 Nthreads = 4
 
 Ncell = np.array([512,512,512])
-duration = 400.                #in units of 1/w_pi
+duration = 800.                #in units of 1/w_pi
 
 v  = 0.5                     #in units of c (=beta)
 n0 = 0.5     #density in proper frame
@@ -31,7 +31,7 @@ dz = 1/2.
 ppc = 8
 nPop = 4
 
-dtDump = 10.    #dump time step desired in units of 1/w_pi
+dtDump = 15.    #dump time step desired in units of 1/w_pi
 
 #--------------------------------------------------------------
 gamma = 1./np.sqrt(1-v**2)
@@ -48,8 +48,9 @@ ratio_l_d_l_e = np.sqrt(T/gamma)
 gammaIfil = v  #[wpi]
 lambdaIfil = 2*np.pi   #[c/wpi]
 R0 = lambdaIfil*np.sqrt(mu)/4  #typical radius of ion filament [c/wpe]
+# R0=3
 gammaKink = 3/2 * v * np.sqrt(1/(mu*R0))    #[wpi]
-lambdaKink = 2*np.pi * 3/2 * np.sqrt(R0)    #[c/wpi]
+lambdaKink = 2*np.pi * 2/3 * np.sqrt(R0)    #[c/wpi]
 tEq = (8/gammaIfil + 8/gammaKink)*2  #assuming 8 e-foldings and an empyrical factor 2 correction
 
 if dim=="1D":
@@ -142,6 +143,10 @@ if   dim=="2D":
 elif dim=="3D":
     print("Ly =",Lx,"[c/wpe] <->",round(Ly/ratio_l_i_l_e,1),"[c/wpi]")
     print("Lz =",Lx,"[c/wpe] <->",round(Lz/ratio_l_i_l_e,1),"[c/wpi]")
+
+print("-------------------------------")
+print("tFinal =",round(duration*np.sqrt(mu)),"[1/wpe] <->",
+                 round(duration,1),"[1/wpi]")
 print("dt =",round(dt,r))
 print("nDump =",nDump)
 print("num_par_max =",int(3*nbrPart/(Nthreads*Ncores)))
@@ -157,21 +162,20 @@ print("-------------------------------")
 print("mu =",mu)
 print("li/le =",round(ratio_l_i_l_e,r))
 print("lD/le =",round(ratio_l_d_l_e,r))
-
+print("kmin =",round(2*np.pi/(Lx/np.sqrt(mu)),r),
+      "| kmax =",round(np.pi/(dx/np.sqrt(mu)),r),"[wpi/c] (x)")
 print("-------------------------------")
 
 print("gammaIfil =",round(gammaIfil,r),"[wpi]")
 print("gammaKink =",round(gammaKink,r),"[wpi]")
-print("lambdaKink =",round(lambdaKink,r),"[c/wpi]")
+print("kKink =",round(2*np.pi/lambdaKink,r),"[wpi/c]")
 print("tEq =",round(tEq,1),"[1/wpi]")
 
 print("-------------------------------")
-print("tFinal =",round(duration*np.sqrt(mu)),"[1/wpe] <->",
-                 round(duration,1),"[1/wpi]")
-print("dtDump =",round(dtDump*np.sqrt(mu),1),"[1/wpe] <->",
-                 dtDump,"[1/wpi]")
 print("nIter =",nIter)
 print("ndumpTot =",ndumpTot)
+print("dtDump =",round(dtDump*np.sqrt(mu),1),"[1/wpe] <->",
+                 dtDump,"[1/wpi]")
 
 print("-------------------------------")
 print("nbrPart =",round(nbrPart/1e6,2),"millions")

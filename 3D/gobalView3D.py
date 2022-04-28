@@ -23,27 +23,34 @@ plt.rcParams.update(params)
 
 #----------------------------------------------
 run  ="CS3D"
-o = osiris.Osiris(run,spNorm="iL")
+o = osiris.Osiris(run,spNorm="iL",nbrCores=6)
 
-sx = slice(None,None,2)
-sy = slice(None,None,2)
-sz = slice(None,None,2)
-sl = (1,sy,sz)
+sx = slice(None,None,1)
+sy = slice(None,None,1)
+sz = slice(None,None,1)
+sl = (sx,sy,sz)
 
-st = slice(1,None,43)
+st = slice(1,None,1)
 time = o.getTimeAxis()[st]
 
 #----------------------------------------------
-Jperp = np.mean(o.getTotCurrent(time,"y",sl=sl,parallel=False)**2 +
-                o.getTotCurrent(time,"z",sl=sl,parallel=False)**2,axis=(1,2))
+UiL   = o.getUfluid(time, "iL", "x", sl=sl,av=(1,2,3),parallel=False)
 
+TiL = np.zeros(len(time))
+TeL = np.zeros(len(time))
+mu = o.getRatioQM("iL")
+for i in range(len(time)):
+    TiL[i] = np.mean(o.getUth   (time[i], "iL", "x", sl=sl,parallel=False)**2*mu,axis=(0,1,2))
+    TeL[i] = np.mean(o.getUth   (time[i], "eL", "x", sl=sl,parallel=False)**2,   axis=(0,1,2))
 
 #%%
 #----------------------------------------------
 # fig, (sub1,sub2) = plt.subplots(1,2,figsize=(4.1,2.8),dpi=300,sharex=True,sharey=True)
 fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300,sharex=True,sharey=True)
 
-sub1.plot(time,Jperp )
+sub1.plot(time,UiL,color="g")
+sub1.plot(time,TiL,color="r")
+sub1.plot(time,TeL,color="b")
 
 sub1.set_xlim(time[0],time[-1])
 # sub1.set_ylim(1e-3,3e2)

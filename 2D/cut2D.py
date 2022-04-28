@@ -29,7 +29,7 @@ plt.rcParams.update(params)
 # plt.close("all")
 
 #----------------------------------------------
-run  ="CS2Drm"
+run  ="CS2Drmhr"
 o = osiris.Osiris(run,spNorm="iL")
 
 x     = o.getAxis("x")
@@ -37,22 +37,22 @@ y     = o.getAxis("y")          #7-12
 time = o.getTimeAxis("eL")
 
 xpos = 0
-t = 30
+t = 1
 time = time[t]
 filtr = True
 #----------------------------------------------
-Bx = o.getB(time,"x")[0,xpos]
-By = o.getB(time,"y")[0,xpos]
-Bz = o.getB(time,"z")[0,xpos]
+Bx = o.getB(time,"x")[xpos]
+By = o.getB(time,"y")[xpos]
+Bz = o.getB(time,"z")[xpos]
 
-Ex = o.getE(time,"x")[0,xpos]
-Ey = o.getE(time,"y")[0,xpos]
-Ez = o.getE(time,"z")[0,xpos]
+Ex = o.getE(time,"x")[xpos]
+Ey = o.getE(time,"y")[xpos]
+Ez = o.getE(time,"z")[xpos]
 
-j_iLx = (o.getCurrent(time, "eL", "x")[0,xpos]+
-         o.getCurrent(time, "eR", "x")[0,xpos]+
-         o.getCurrent(time, "iL", "x")[0,xpos]+
-         o.getCurrent(time, "iR", "x")[0,xpos])
+j_iLx = (o.getCurrent(time, "eL", "x")[xpos]+
+         o.getCurrent(time, "eR", "x")[xpos]+
+         o.getCurrent(time, "iL", "x")[xpos]+
+         o.getCurrent(time, "iR", "x")[xpos])
 
 if filtr:
     st=2.     #standard deviation for gaussian filter
