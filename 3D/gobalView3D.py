@@ -36,12 +36,16 @@ time = o.getTimeAxis()[st]
 #----------------------------------------------
 UiL   = o.getUfluid(time, "iL", "x", sl=sl,av=(1,2,3),parallel=False)
 
-TiL = np.zeros(len(time))
-TeL = np.zeros(len(time))
+TiLx = np.zeros(len(time))
+TeLx = np.zeros(len(time))
+TiLy = np.zeros(len(time))
+TeLy = np.zeros(len(time))
 mu = o.getRatioQM("iL")
 for i in range(len(time)):
-    TiL[i] = np.mean(o.getUth   (time[i], "iL", "x", sl=sl,parallel=False)**2*mu,axis=(0,1,2))
-    TeL[i] = np.mean(o.getUth   (time[i], "eL", "x", sl=sl,parallel=False)**2,   axis=(0,1,2))
+    TiLx[i] = np.mean(o.getUth   (time[i], "iL", "x", sl=sl,parallel=False)**2*mu,axis=(0,1,2))
+    TeLx[i] = np.mean(o.getUth   (time[i], "eL", "x", sl=sl,parallel=False)**2,   axis=(0,1,2))
+    TiLy[i] = np.mean(o.getUth   (time[i], "iL", "y", sl=sl,parallel=False)**2*mu,axis=(0,1,2))
+    TeLy[i] = np.mean(o.getUth   (time[i], "eL", "y", sl=sl,parallel=False)**2,   axis=(0,1,2))
 
 #%%
 #----------------------------------------------
@@ -49,8 +53,11 @@ for i in range(len(time)):
 fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300,sharex=True,sharey=True)
 
 sub1.plot(time,UiL,color="g")
-sub1.plot(time,TiL,color="r")
-sub1.plot(time,TeL,color="b")
+sub1.plot(time,TiLx,color="r")
+sub1.plot(time,TeLx,color="b")
+
+sub1.plot(time,TiLy,color="r",linestyle="--")
+sub1.plot(time,TeLy,color="b",linestyle="--")
 
 sub1.set_xlim(time[0],time[-1])
 # sub1.set_ylim(1e-3,3e2)

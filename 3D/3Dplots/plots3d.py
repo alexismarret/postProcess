@@ -34,6 +34,16 @@ def get3D(froot,diag,frame,mult=1,xlim=[],ylim=[],zlim=[],smooth=0):
     if froot[-1] != '/': froot += '/'
     d = h5py.File(sorted(glob.glob(froot+'*.h5'))[frame],'r')
     value = d[diag][:].T*mult
+
+    """
+    added here mask
+    """
+    # value[np.abs(value)<0.2]=0.
+
+    """
+    added here mask
+    """
+
     x0,x1 = d['AXIS']['AXIS1']
     y0,y1 = d['AXIS']['AXIS2']
     z0,z1 = d['AXIS']['AXIS3']
@@ -128,6 +138,16 @@ xhat = np.array([1,0,0])
 yhat = np.array([0,1,0])
 zhat = np.array([0,0,1])
 
+@numba.njit()
+def vnormFunc(value,vlim0,vlim1):
+    if vlim0<0 and vlim1>0: # If value contains both positive and negative values, normalize to that value
+        if value<0:
+            return value/vlim0
+        else:
+            return value/vlim1
+    else: # normalize to the distance between the two
+        return (value-vlim0)/(vlim1-vlim0)
+
 @numba.njit(parallel=True)
 def pathtrace(rho,bounds,rcamera,ncamera,dcamera,fov,pixels,dr,opacity_scale_func,cmap_func,vlim,
                screen_r,screen_g,screen_b,screen_a):
@@ -192,6 +212,8 @@ def pathtrace(rho,bounds,rcamera,ncamera,dcamera,fov,pixels,dr,opacity_scale_fun
     if hcamera[2]<0:
         hcamera *= -1
 
+
+
     # Iterate over pixels in camera plane
     for i in numba.prange(pixels[0]): # Rows of pixels; Numba will parallelize over this axis
         for j in range(pixels[1]): # Columns of pixels
@@ -243,12 +265,14 @@ def pathtrace(rho,bounds,rcamera,ncamera,dcamera,fov,pixels,dr,opacity_scale_fun
                              (1-fx)*(1-fy)*(1-fz) * rho[ix,iy,iz])
 #                     value = rho[ix,iy,iz]
                     vnorm = clip((value-vlim[0])/(vlim[1]-vlim[0]),0,1)
+
                     # Get the cmap color for this value
                     dcolor = cmap_func(vnorm)
-                    # optical depth can be spatially varying and nonlinear with respect to the value
+                    # optical depth can be spatially varying and depend on the value
                     optical_depth = opacity_scale_func(r,vnorm)*dr
-                    transmission = np.exp(-optical_depth)
 
+                    transmission = np.exp(-optical_depth)
+                    #print(value,vlim[0],vlim[1],vnorm,optical_depth)
                     # Add the color to the pixel and lower the transmission accordingly
                     opacity = 1-transmission
                     color += dcolor*lightlevel*opacity
@@ -264,14 +288,11 @@ def pathtrace(rho,bounds,rcamera,ncamera,dcamera,fov,pixels,dr,opacity_scale_fun
             screen_a[i,j] = clip(lightlevel/lightlevel_start,0,1)
 
     # We don't return anything since we load the output arrays during computation
-
-
-
-
 def plotPathTrace(froots,diags,frame,rcamera,thcamera,pixels,dr,figsize,dpi,axesback=True,axesfront=True,image=True,
                    combineFunc=lambda v:v[0],mult=1,xlim=[],ylim=[],zlim=[],vlim=[],cmap='jet',vlabel='',xslices=np.array([1e10]),
-                   yslices=np.array([1e10]),zslices=np.array([1e10]),opacity=1,dcamera=1,fov=(1.5,1),save='',show=True,lintrans=True,
-                   scales=[1,1,1],offsets=[0,0,0],cbarloc='upper right'):
+                   yslices=np.array([1e10]),zslices=np.array([1e10]),opacity=1,dcamera=1,fov=(1.5,1),save='',show=True,
+                   valueTransparent='auto',scales=[1,1,1],offsets=[0,0,0],cbarloc='upper right',
+                   tickparams=[[5,1],[5,1],[5,1]]):
 
     '''
     Plots volumetric rendering with axes overlaid on top. This function performs several steps:
@@ -327,10 +348,18 @@ def plotPathTrace(froots,diags,frame,rcamera,thcamera,pixels,dr,figsize,dpi,axes
             fov: 2-tuple of floats (1.5,1); the spatial extent of the camera plane (width,height).
             save: string (''); set to a filename to save the resulting image.
             show: bool (True); whether to display the resulting image
+            valueTransparent: string or float ('auto'); optionally set a certain value which will be transparent.
+                Optional values:
+                    float: then that value of the 3D data will be transparent and opacity at other values
+                            will scale linearly from that value.
+                    'None': Opacity will not depend on the value.
+                    'auto': it will be set to the smaller value in vlim, or 0 if vlim is both negative and positive
             scales: 3-tuple of floats ([1,1,1]); scales the simulation data axes lengths by these factors (x,y,z)
             offsets: 3-tuple of floats ([0,0,0]); Shifts the simualtion data spatial position by this amount
                                                   before applying optional rescaling.
             cbarloc: string ('upper right'); colorbar location (see matploblib documentation).
+            tickparams: 3-tuple of 2-tuples ([[5,1],[5,1],[5,1]]); each 2-tuple contains the major and minor tick spacing
+                    for a direction. Leave any component 0 to avoid drawing those ticks.
 
         Outputs:
             None
@@ -384,12 +413,30 @@ def plotPathTrace(froots,diags,frame,rcamera,thcamera,pixels,dr,figsize,dpi,axes
     def cmap_func(x):
         return np.array([np.interp(x,xarr,mapred),np.interp(x,xarr,mapgreen),np.interp(x,xarr,mapblue)])
 
+    # Set the value for full transparency (zero opacity)
+    if valueTransparent == 'None':
+        @numba.njit()
+        def opacity_norm(valnorm): return 1
+    else:
+        if valueTransparent == 'auto':
+            if vlim[0]<0 and vlim[1]>0:
+                valueTransparent = 0
+            else:
+                valueTransparent = min(vlim[0],vlim[1])
+        else: # valueTransparent should be a number
+            assert isinstance(valueTransparent,(float,int))
+        valueOpaque = vlim[1]
+        @numba.njit()
+        def opacity_norm(valnorm): # Get the opacity as a function of valnorm (which will be [0,1])
+            val = valnorm*(vlim[1]-vlim[0])+vlim[0]
+            return abs((val-valueTransparent)/(valueOpaque-valueTransparent))
+
     # Opacity will be a constant value everywhere but it spikes at locations where we want to plot slices
     @numba.njit()
     def opacity_scale_func(r,valnorm):
         return ((np.sum((np.abs(r[0]-xslices)<dr/2)*1e6)+
                 np.sum((np.abs(r[1]-yslices)<dr/2)*1e6)+
-                np.sum((np.abs(r[2]-zslices)<dr/2)*1e6)) + opacity)*(valnorm*lintrans+(1-lintrans))
+                np.sum((np.abs(r[2]-zslices)<dr/2)*1e6)) + opacity)*opacity_norm(valnorm)
 
     # Render the image!
     if image: pathtrace(value,bounds,rcamera,ncamera,dcamera,fov,pixels,dr,opacity_scale_func,cmap_func,vlim,
@@ -433,19 +480,26 @@ def plotPathTrace(froots,diags,frame,rcamera,thcamera,pixels,dr,figsize,dpi,axes
 
         # Plot the data
         if image: plt.imshow(np.array([red,green,blue,1-alpha]).T,origin='lower',aspect=1,
-                      interpolation='bicubic',zorder=-2)
+                      interpolation='bicubic',zorder=0)
 
 #         plt.imshow(np.array([red,green,blue,1-alpha]).T,origin='lower',zorder=2)
 
         # Plot the lines in front of the data
         if axesfront:
             for line,p1,p2 in linesfront:
-                plt.plot([p1[0],p2[0]],[p1[1],p2[1]],'k',lw=0.5,zorder=2)
+                plt.plot([p1[0],p2[0]],[p1[1],p2[1]],'k',lw=0.5,zorder=1)
 
 
             #plt.gca().add_patch(Polygon([[p1[0],p1[1]],[p2[0],p2[1]]]),c='k')
 
+
+
+
+
         # Plot the ticks and labels in front of the data
+        tp = tickparams
+        lmajor = np.max([x1-x0,y1-y0,z1-z0])*.04
+        lminor = lmajor/2
         if axesfront:
             # Tick parameters for the three axes
             ################### WORK NEEDED ############################
@@ -453,9 +507,12 @@ def plotPathTrace(froots,diags,frame,rcamera,thcamera,pixels,dr,figsize,dpi,axes
             tickparams = [
                 # direction, label, axis_bounds, tickdir, dmajor, dminor, lenmajor, lenminor,
                 #      horizontal_align, vertical_align, flip it, axis index
-                ['x',r'$x~(c/\omega_p)$',np.array([[x0s,y0s,z0s],[x1s,y0s,z0s]]),yhat, 2, 1, .5,.2,'left','center',False,0],
-                ['y',r'$y~(c/\omega_p)$',np.array([[x0s,y0s,z0s],[x0s,y1s,z0s]]),xhat, 10, 5,.5,.2,'right','top',True,1],
-                ['z',r'$z~(c/\omega_p)$',np.array([[x0s,y1s,z0s],[x0s,y1s,z1s]]),xhat, 10, 5,.5,.2,'right','top',True,2],
+                ['x',r'$x~(c/\omega_p)$',np.array([[x0s,y0s,z0s],[x1s,y0s,z0s]]),yhat,
+                 tp[0][0],tp[0][1],lmajor,lminor,'left','center',False,0],
+                ['y',r'$y~(c/\omega_p)$',np.array([[x0s,y0s,z0s],[x0s,y1s,z0s]]),xhat,
+                 tp[1][0],tp[1][1],lmajor,lminor,'right','top',True,1],
+                ['z',r'$z~(c/\omega_p)$',np.array([[x0s,y1s,z0s],[x0s,y1s,z1s]]),xhat,
+                 tp[2][0],tp[2][1],lmajor,lminor,'right','top',True,2],
             ]
             angle = 0*1e10
             for axisname,label,(r1,r2),tickdir,dmajor,dminor,lenmajor,lenminor,ha,va,flip,iax in tickparams:
@@ -466,22 +523,27 @@ def plotPathTrace(froots,diags,frame,rcamera,thcamera,pixels,dr,figsize,dpi,axes
                 if r1[0] != r2[0]: dlim = [x0,x1]
                 elif r1[1] != r2[1]: dlim = [y0,y1]
                 else: dlim = [z0,z1]
-                # Major ticks
-                dmajoff = nearest(dlim[0],dmajor) - dlim[0]
-                majorticks = np.arange(nearest(dlim[0],dmajor),dlim[1],dmajor)
-                # Minor ticks
-                minorticks = np.arange(nearest(dlim[0],dminor),dlim[1],dminor)
-                dminoff = nearest(dlim[0],dminor) - dlim[0]
-                # Throw out minor ticks which overlap with majors
-                minorticks = np.array([m for m in minorticks if m not in majorticks])
+
+
+                ticks = []
+                if dmajor>0:
+                    # Major ticks
+                    dmajoff = nearest(dlim[0],dmajor) - dlim[0]
+                    majorticks = np.arange(nearest(dlim[0],dmajor),dlim[1],dmajor)
+                    for m in majorticks: ticks.append(['major',m,dmajor,lenmajor])
+                else: majorticks=[]
+                if dminor>0:
+                    # Minor ticks
+                    minorticks = np.arange(nearest(dlim[0],dminor),dlim[1],dminor)
+                    dminoff = nearest(dlim[0],dminor) - dlim[0]
+                    # Throw out minor ticks which overlap with majors
+                    minorticks = np.array([m for m in minorticks if m not in majorticks])
+                    for m in minorticks: ticks.append(['minor',m,dminor,lenminor])
 
                 # Translate the data coordinates of the ticks to screen position in pixels
                 pr1 = point3dToScreen(r1,rcamera,ncamera,dcamera,fov,pixels)
                 pr2 = point3dToScreen(r2,rcamera,ncamera,dcamera,fov,pixels)
 
-                ticks = []
-                for m in minorticks: ticks.append(['minor',m,dminor,lenminor])
-                for m in majorticks: ticks.append(['major',m,dmajor,lenmajor])
                 # Render the ticks
                 for ticktype,m,dtick,lentick in ticks:
                     # Get tick start and end positions

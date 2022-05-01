@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Apr 20 17:10:53 2022
+Created on Fri Apr 29 14:08:31 2022
 
 @author: alexis
 """
-
 
 #----------------------------------------------
 import osiris
@@ -46,13 +45,13 @@ time = o.getTimeAxis()[st]
 mu = o.getRatioQM("iL")
 
 #----------------------------------------------
-path = o.path+"/plots/TiX"
+path = o.path+"/plots/niX"
 o.setup_dir(path)
 
 #----------------------------------------------
 fig, (sub1) = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
 
-data = o.getUth(time[0], "iL", "x",sl=sl)**2 * mu
+data = o.getCharge(time[0], "iL",sl=sl)
 
 im=sub1.imshow(data.T,
                extent=extent,origin="lower",
@@ -95,7 +94,7 @@ for i in range(len(time)):
                     verticalalignment='bottom',
                     transform=sub1.transAxes)
 
-    data = o.getUth(time[i], "iL", "x",sl=sl)**2 * mu
+    data = o.getCharge(time[i], "iL",sl=sl)
     im.set_array(data.T)
 
     plt.savefig(path+"/plot-{i}-time-{t}.png".format(i=i,t=time[i]),dpi="figure")

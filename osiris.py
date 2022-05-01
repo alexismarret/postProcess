@@ -43,7 +43,7 @@ class Osiris:
         cat=""
 
         #open input file
-        with open( input_file) as f:
+        with open(input_file) as f:
             for l in f.readlines():
 
                 #remove brackets, spaces, line breaks
@@ -210,7 +210,7 @@ class Osiris:
                 #make sure padding is correct
                 if sIndex < 10: sIndex = "0" + str(sIndex)
                 else:           sIndex = str(sIndex)
-                N = len(np.loadtxt(self.path+"/HIST/par"+sIndex+"_ene",skiprows=2,usecols=0))
+                N = len(np.loadtxt(self.path+"/HIST/par"+sIndex+"_ene",skiprows=2,usecols=2))
                 delta = self.dt*self.ndump*self.ndump_fac_ene[species_index]
 
             elif raw:
@@ -227,7 +227,7 @@ class Osiris:
         #fields time
         else:
             if ene:
-                N = len(np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=0))
+                N = len(np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=2))
                 delta = self.dt*self.ndump*self.ndump_fac_ene_int
 
             else:
@@ -294,11 +294,12 @@ class Osiris:
         return G
 
 
+
     #--------------------------------------------------------------
     def revertAx(self,a):
 
         if a==None:
-            return self.grid
+            return None
         else:
             val = len(self.grid)-1
             a = list(a)
@@ -525,6 +526,42 @@ class Osiris:
 
 
     #--------------------------------------------------------------
+    def getRaw(self, time, species, key, sl=slice(None), parallel=True):
+
+        #['SIMULATION', 'ene', 'p1', 'p2', 'p3', 'q', 'tag', 'x1', 'x2', 'x3']
+
+        dataPath = self.path+"/MS/RAW/"+species+"/"
+
+        #handle list or single time
+        try:    N = len(time)
+        except: time = [time]; N = 1
+
+        #get time
+        index=np.nonzero(np.in1d(self.getTimeAxis(species,raw=True),time))[0]
+
+        #check if requested times exist
+        if len(index)!=N: raise ValueError("Unknown time for '"+dataPath+"'")
+
+        #create inputs
+        it = ((dataPath + p, key, sl) for p in np.take(sorted(os.listdir(dataPath)), index))
+
+        #multiple values read
+        if N>1:
+            #parallel reading of data
+            if parallel:
+                G = pf.parallel(pf.readRawData, it, self.nbrCores, plot=False)
+            #sequential reading of data
+            else:
+                G = np.asarray(tuple(pf.readRawData(i[0], key, sl) for i in it), dtype=object)
+
+        #single value read
+        else:
+            G = pf.readRawData(next(it)[0], key, sl)
+
+        return G
+
+
+    #--------------------------------------------------------------
     def getPhaseSpace(self, time, species, direction, comp, parallel=True):
 
         if    direction=="x": l = "x1"
@@ -552,6 +589,8 @@ class Osiris:
             for files in glob.glob(path+"/*.eps"):
                 os.remove(files)
             for files in glob.glob(path+"/*.pdf"):
+                os.remove(files)
+            for files in glob.glob(path+"/*.mp4"):
                 os.remove(files)
 
         elif not os.path.exists(path):

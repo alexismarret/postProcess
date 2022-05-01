@@ -15,6 +15,9 @@ from multiprocessing import Pool
 from memory_profiler import profile
 import time as ti
 
+# import warnings
+# warnings.filterwarnings("error")  #catch warnings as errors
+
 #--------------------------------------------------------------
 # @profile
 def parallel(function, it, nbrCores, plot=False):
@@ -42,14 +45,16 @@ def parallel(function, it, nbrCores, plot=False):
     if plot: plt.switch_backend('Qt5Agg')
 
     #results is in format:
-    # [list (times), tuple (nbr of outputs of function), np.array (of various sizes)]
+    # [list (times), tuple (nbr of outputs of function), np.array (can be of various sizes)]
     #for single output:
-    # [list (times), np.array]
+    # [list (times), np.array (can be of various sizes)]
 
     if type(results[0])==tuple:
-        return (np.asarray(r) for r in zip(*results))
+        return (np.asarray(r,dtype=object) for r in zip(*results))
     else:
-        return np.asarray(results)
+        return np.asarray(results,dtype=object)
+
+
 
 
 #--------------------------------------------------------------
@@ -62,6 +67,14 @@ def readData(dataPath, sl, av):
             return np.mean(f[list(f.keys())[-1]][sl], axis=av).T
         else:
             return         f[list(f.keys())[-1]][sl].T
+
+
+#--------------------------------------------------------------
+def readRawData(dataPath, key, sl):
+
+    with h5py.File(dataPath,"r") as f:
+
+        return f[key][sl]
 
 
 

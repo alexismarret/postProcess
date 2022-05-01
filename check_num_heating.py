@@ -36,7 +36,7 @@ run  = ("resTest/uniform2",
 fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
 
 for r in run:
-    o = osiris.Osiris(r)
+    o = osiris.Osiris(r,spNorm="i")
 
     st = slice(None,None,1)
     time = o.getTimeAxis()[st]

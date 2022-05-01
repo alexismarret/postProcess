@@ -11,18 +11,18 @@ import sys
 
 #--------------------------------------------------------------
 dim = "3D"
-Nnodes = 8
+Nnodes = 64
 NCPUperNodes = 64
 Nthreads = 4
 
 Ncell = np.array([512,512,512])
-duration = 800.                #in units of 1/w_pi
+duration = 1000               #in units of 1/w_pi
 
 v  = 0.5                     #in units of c (=beta)
 n0 = 0.5     #density in proper frame
 T  = 1e-6    #in units of me * c^2 (=511 KeV) in rest frame
 
-mu = 32
+mu = 64
 
 dx = 1/2.       #in units of c/w_pe
 dy = 1/2.
@@ -31,7 +31,7 @@ dz = 1/2.
 ppc = 8
 nPop = 4
 
-dtDump = 15.    #dump time step desired in units of 1/w_pi
+dtDump = 50.    #dump time step desired in units of 1/w_pi
 
 #--------------------------------------------------------------
 gamma = 1./np.sqrt(1-v**2)
@@ -48,7 +48,6 @@ ratio_l_d_l_e = np.sqrt(T/gamma)
 gammaIfil = v  #[wpi]
 lambdaIfil = 2*np.pi   #[c/wpi]
 R0 = lambdaIfil*np.sqrt(mu)/4  #typical radius of ion filament [c/wpe]
-# R0=3
 gammaKink = 3/2 * v * np.sqrt(1/(mu*R0))    #[wpi]
 lambdaKink = 2*np.pi * 2/3 * np.sqrt(R0)    #[c/wpi]
 tEq = (8/gammaIfil + 8/gammaKink)*2  #assuming 8 e-foldings and an empyrical factor 2 correction
@@ -162,6 +161,7 @@ print("-------------------------------")
 print("mu =",mu)
 print("li/le =",round(ratio_l_i_l_e,r))
 print("lD/le =",round(ratio_l_d_l_e,r))
+print("lorentz =",round(gamma,r))
 print("kmin =",round(2*np.pi/(Lx/np.sqrt(mu)),r),
       "| kmax =",round(np.pi/(dx/np.sqrt(mu)),r),"[wpi/c] (x)")
 print("-------------------------------")
