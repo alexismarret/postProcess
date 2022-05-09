@@ -20,11 +20,11 @@ import time as ti
 
 #--------------------------------------------------------------
 # @profile
-def parallel(function, it, nbrCores, plot=False):
+def parallel(function, it, nbrCores, noInteract=False):
     #evaluates in parallel all the results, not lazy
 
     #disable interactive window for plots
-    if plot: plt.switch_backend('Agg')
+    if noInteract: plt.switch_backend('Agg')
 
     #generate pool of workers
     with Pool(processes = nbrCores) as pool:
@@ -42,7 +42,7 @@ def parallel(function, it, nbrCores, plot=False):
     pool.join()
 
     #re enable interactive window for plots
-    if plot: plt.switch_backend('Qt5Agg')
+    if noInteract: plt.switch_backend('Qt5Agg')
 
     #results is in format:
     # [list (times), tuple (nbr of outputs of function), np.array (can be of various sizes)]
@@ -50,10 +50,9 @@ def parallel(function, it, nbrCores, plot=False):
     # [list (times), np.array (can be of various sizes)]
 
     if type(results[0])==tuple:
-        return (np.asarray(r,dtype=object) for r in zip(*results))
+        return (np.asarray(r) for r in zip(*results))
     else:
-        return np.asarray(results,dtype=object)
-
+        return np.asarray(results)
 
 
 

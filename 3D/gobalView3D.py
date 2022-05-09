@@ -33,31 +33,58 @@ sl = (sx,sy,sz)
 st = slice(1,None,1)
 time = o.getTimeAxis()[st]
 
-#----------------------------------------------
-UiL   = o.getUfluid(time, "iL", "x", sl=sl,av=(1,2,3),parallel=False)
+av = (0,1,2)
+mu = o.rqm[o.sIndex("iL")]
 
+#----------------------------------------------
+#ekin = (gamma-1)mpc**2
+Ekin_iL = np.zeros(len(time))
 TiLx = np.zeros(len(time))
 TeLx = np.zeros(len(time))
 TiLy = np.zeros(len(time))
 TeLy = np.zeros(len(time))
-mu = o.getRatioQM("iL")
+
 for i in range(len(time)):
-    TiLx[i] = np.mean(o.getUth   (time[i], "iL", "x", sl=sl,parallel=False)**2*mu,axis=(0,1,2))
-    TeLx[i] = np.mean(o.getUth   (time[i], "eL", "x", sl=sl,parallel=False)**2,   axis=(0,1,2))
-    TiLy[i] = np.mean(o.getUth   (time[i], "iL", "y", sl=sl,parallel=False)**2*mu,axis=(0,1,2))
-    TeLy[i] = np.mean(o.getUth   (time[i], "eL", "y", sl=sl,parallel=False)**2,   axis=(0,1,2))
+    Ekin_iL[i]  = np.mean(
+                        (np.sqrt(
+                            1+o.getUfluid(time[i], "iL", "x", sl=sl)**2+
+                              o.getUfluid(time[i], "iL", "y", sl=sl)**2+
+                              o.getUfluid(time[i], "iL", "z", sl=sl)**2)-1
+                        )*mu,axis=av)
+
+    TiLx[i] = np.mean(o.getUth(time[i], "iL", "x", sl=sl)**2*mu,axis=av)
+    TeLx[i] = np.mean(o.getUth(time[i], "eL", "x", sl=sl)**2,   axis=av)
+    TiLy[i] = np.mean(o.getUth(time[i], "iL", "y", sl=sl)**2*mu,axis=av)
+    TeLy[i] = np.mean(o.getUth(time[i], "eL", "y", sl=sl)**2,   axis=av)
+
+E = o.getEnergyIntegr(time, "E")
+Ex = E[...,0]
+Ey = E[...,1]
+Ez = E[...,2]
+B = o.getEnergyIntegr(time, "B")
+Bx = B[...,0]
+By = B[...,1]
+Bz = B[...,2]
 
 #%%
 #----------------------------------------------
 # fig, (sub1,sub2) = plt.subplots(1,2,figsize=(4.1,2.8),dpi=300,sharex=True,sharey=True)
 fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300,sharex=True,sharey=True)
 
-sub1.plot(time,UiL,color="g")
-sub1.plot(time,TiLx,color="r")
-sub1.plot(time,TeLx,color="b")
+sub1.plot(time,Ekin_iL,color="g",label=r"$\mathcal{E}_{kin|iL}$")
+sub1.plot(time,TiLx,color="r",label=r"$T_{x|iL}$")
+sub1.plot(time,TeLx,color="b",label=r"$T_{x|eL}$")
 
-sub1.plot(time,TiLy,color="r",linestyle="--")
-sub1.plot(time,TeLy,color="b",linestyle="--")
+sub1.plot(time,TiLy,color="r",label=r"$T_{y|iL}$",linestyle="dashed")
+sub1.plot(time,TeLy,color="b",label=r"$T_{y|eL}$",linestyle="dashed")
+
+sub1.plot(time,Ex,color="k",linestyle="dotted",label=r"$E_x^2/2$")
+sub1.plot(time,Ey,color="k",linestyle="dashed",label=r"$E_y^2/2$")
+sub1.plot(time,Ez,color="k",linestyle="dashdot",label=r"$E_z^2/2$")
+
+sub1.plot(time,Bx,color="gray",linestyle="dotted",label=r"$B_x^2/2$")
+sub1.plot(time,By,color="gray",linestyle="dashed",label=r"$B_y^2/2$")
+sub1.plot(time,Bz,color="gray",linestyle="dashdot",label=r"$B_z^2/2$")
 
 sub1.set_xlim(time[0],time[-1])
 # sub1.set_ylim(1e-3,3e2)

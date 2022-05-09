@@ -9,7 +9,9 @@ Created on Thu Mar 10 14:10:26 2022
 import glob
 import os
 import numpy as np
-import parallel_functions as pf
+import parallelFunctions as pf
+import operator
+import numba
 import time as ti
 
 class Osiris:
@@ -24,8 +26,10 @@ class Osiris:
 
         self.parseInput()
 
-        self.cellHyperVolume = np.prod((self.gridPosMax-self.gridPosMin)/self.grid)
-        self.boxHyperVolume  = np.prod (self.gridPosMax-self.gridPosMin)
+        self.boxSize = self.gridPosMax - self.gridPosMin
+        self.meshSize = self.boxSize / self.grid
+        self.cellHyperVolume = np.prod(self.meshSize)
+        self.boxHyperVolume  = np.prod(self.boxSize)
 
         return
 
@@ -60,7 +64,7 @@ class Osiris:
                 #filter for numerical inputs
                 elif "=" in l:
                     #remove d0 notation and quote
-                    l  = l.replace("d0","").replace('"','')
+                    l = l.replace("d0","").replace('"','')
 
                     #handle comments next to value, remove last comma
                     try:               value = l[l.index("=")+1:l.index("!")-1]
@@ -106,11 +110,13 @@ class Osiris:
                     #particles parameters
                     elif ("num_species=" in l) or ("num_cathode=" in l):
                         Ns+=int(value)
-                        self.ndump_facP     = np.zeros(Ns)
-                        self.ndump_fac_ene  = np.zeros(Ns)
-                        self.ndump_fac_raw  = np.zeros(Ns)
-                        self.species_name   = np.empty(Ns, dtype='object')
-                        self.rqm            = np.zeros(Ns)
+                        self.ndump_facP    = np.zeros(Ns)
+                        self.ndump_fac_ene = np.zeros(Ns)
+                        self.ndump_fac_raw = np.zeros(Ns)
+                        self.species_name  = np.empty(Ns, dtype='object')
+                        self.rqm           = np.zeros(Ns)
+                        self.ppc           = np.zeros(Ns)
+                        self.n0            = np.zeros(Ns)
 
                     elif "name=" in l:
                         if self.species_name[s] != None: s+=1
@@ -119,6 +125,14 @@ class Osiris:
                     elif "rqm=" in l:
                         if self.rqm[s] != 0: s+=1
                         self.rqm[s] = float(value)
+
+                    elif "num_par_x" in l:
+                        if self.ppc[s] != 0: s+=1
+                        self.ppc[s] = np.prod(np.int_(value.split(",")))
+
+                    elif "density=" in l:
+                        if self.n0[s] != 0: s+=1
+                        self.n0[s] = float(value)
 
                     elif (cat=="diag_species") and ("ndump_fac=" in l):
                         self.ndump_facP[s] = int(value)
@@ -146,6 +160,8 @@ class Osiris:
         print("grid =", self.grid)
         print("gridPosMin =", self.gridPosMin)
         print("gridPosMax =", self.gridPosMax)
+        print("boxSize =",self.boxSize)
+        print("meshSize =",self.meshSize)
         print("cellHyperVolume =", self.cellHyperVolume)
         print("boxHyperVolume =", self.boxHyperVolume)
 
@@ -159,6 +175,7 @@ class Osiris:
         print("-------------------------------")
         print("species_name =", self.species_name)
         print("rqm =", self.rqm)
+        print("ppc =", self.ppc)
         print("ndump_facP =", self.ndump_facP)
         print("ndump_fac_ene =", self.ndump_fac_ene)
         print("ndump_fac_raw =", self.ndump_fac_raw)
@@ -173,13 +190,14 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def getRatioQM(self, species):
+    def sIndex(self, species):
 
-        index=np.nonzero(np.in1d(self.species_name,species))[0]
+        try:
+            index = np.where(self.species_name==species)[0][0]
+        except:
+            raise ValueError("Unknown species '"+species+"'")
 
-        rqm = self.rqm[index][0]
-
-        return rqm
+        return index
 
 
     #--------------------------------------------------------------
@@ -189,10 +207,9 @@ class Osiris:
         elif direction == "y": i=1
         elif direction == "z": i=2
 
-        delta = (self.gridPosMax[i] - self.gridPosMin[i]) / self.grid[i]
-        axis = np.linspace(self.gridPosMin[i],(self.grid[i]-1)*delta,self.grid[i])
+        axis = np.linspace(self.gridPosMin[i],(self.grid[i]-1)*self.meshSize[i],self.grid[i])
 
-        if self.spNorm!=None: axis /= np.sqrt(self.getRatioQM(self.spNorm))
+        if self.spNorm!=None: axis /= np.sqrt(self.rqm[self.sIndex(self.spNorm)])
 
         return axis
 
@@ -202,11 +219,9 @@ class Osiris:
 
         #species time
         if species!=None:
-            try: species_index = np.where(self.species_name==species)[0][0]
-            except: raise ValueError("Unknown species '"+species+"'")
-
+            species_index = self.sIndex(species)
             if ene:
-                sIndex = np.nonzero(np.in1d(self.species_name,species))[0][0] + 1
+                sIndex = self.sIndex(species) + 1
                 #make sure padding is correct
                 if sIndex < 10: sIndex = "0" + str(sIndex)
                 else:           sIndex = str(sIndex)
@@ -238,7 +253,7 @@ class Osiris:
 
         time = np.linspace(self.tmin,(N-1)*delta,N)
 
-        if self.spNorm!=None: time /= np.sqrt(self.getRatioQM(self.spNorm))
+        if self.spNorm!=None: time /= np.sqrt(self.rqm[self.sIndex(self.spNorm)])
 
         return time.round(7)
 
@@ -264,6 +279,7 @@ class Osiris:
 
         #invert slices because of needed transposition
         #slices performance can be worse than reading everything
+        #does not support list of unordered indices
         slices = tuple(slices)[::-1]
 
         #adjust axis average, reversed because of transposition
@@ -279,7 +295,7 @@ class Osiris:
         if N>1:
             #parallel reading of data
             if parallel:
-                G = pf.parallel(pf.readData, it, self.nbrCores, plot=False)
+                G = pf.parallel(pf.readData, it, self.nbrCores)
             #sequential reading of data
             else:
                 #calculate size of sliced array, invert again slices and averaged
@@ -294,12 +310,11 @@ class Osiris:
         return G
 
 
-
     #--------------------------------------------------------------
     def revertAx(self,a):
 
         if a==None:
-            return None
+            return (None,)
         else:
             val = len(self.grid)-1
             a = list(a)
@@ -353,7 +368,6 @@ class Osiris:
                               np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=3)[cond],
                               np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=4)[cond]]).T
 
-
         elif qty=="E":
             ene = np.asarray([np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=5)[cond],
                               np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=6)[cond],
@@ -361,7 +375,7 @@ class Osiris:
 
         #kinetic energy
         elif qty=="kin":
-            sIndex = np.nonzero(np.in1d(self.species_name,species))[0][0] + 1
+            sIndex = self.sIndex(species) + 1
             #make sure padding is correct
             if sIndex < 10: sIndex = "0" + str(sIndex)
             else:           sIndex = str(sIndex)
@@ -429,13 +443,15 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def getVclassical(self, time, species, comp, sl=slice(None), av=None, parallel=True):
+    def getTemp(self, time, species, comp, sl=slice(None), av=None, parallel=True):
 
-        Ufluid = self.getUfluid(time,species,comp,sl,av,parallel)
+        key = "T"+comp
 
-        Vclassical = np.sign(Ufluid)*np.sqrt(1./(1./Ufluid**2+1.))
+        dataPath = self.path+"/MS/UDIST/"+species+"/"+key+"/"
 
-        return Vclassical
+        T = self.getOnGrid(time,dataPath,species,sl,av,parallel)
+
+        return T
 
 
     #--------------------------------------------------------------
@@ -514,18 +530,6 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def getTemp(self, time, species, comp, sl=slice(None), av=None, parallel=True):
-
-        key = "T"+comp
-
-        dataPath = self.path+"/MS/UDIST/"+species+"/"+key+"/"
-
-        T = self.getOnGrid(time,dataPath,species,sl,av,parallel)
-
-        return T
-
-
-    #--------------------------------------------------------------
     def getRaw(self, time, species, key, sl=slice(None), parallel=True):
 
         #['SIMULATION', 'ene', 'p1', 'p2', 'p3', 'q', 'tag', 'x1', 'x2', 'x3']
@@ -549,7 +553,7 @@ class Osiris:
         if N>1:
             #parallel reading of data
             if parallel:
-                G = pf.parallel(pf.readRawData, it, self.nbrCores, plot=False)
+                G = pf.parallel(pf.readRawData, it, self.nbrCores)
             #sequential reading of data
             else:
                 G = np.asarray(tuple(pf.readRawData(i[0], key, sl) for i in it), dtype=object)
@@ -618,53 +622,146 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def buildUnitVector(self, sh, direction):
+    def crossProduct(self, Ax, Ay, Az, Bx, By, Bz):
 
-        vec = np.zeros(sh)
+        cx = Ay*Bz - Az*By
+        cy = Az*Bx - Ax*Bz
+        cz = Ax*By - Ay*Bx
 
-        if   direction == "x" : vec[...,0] = 1.
-        elif direction == "y" : vec[...,1] = 1.
-        elif direction == "z" : vec[...,2] = 1.
-
-        return vec
+        return cx, cy, cz
 
 
     #--------------------------------------------------------------
-    def emfAlignedBasis(self, time, emf) :
+    def projectVec(self, vx, vy, vz, ex, ey, ez, comp):
 
-        if emf == "B":
-            Para = np.stack((self.getB(time, "x"),
-                             self.getB(time, "y"),
-                             self.getB(time, "z")),axis=-1)
+        #assumes e!= (0,1,0)
+        Ix = 0.
+        Iy = 1.
+        Iz = 0.
 
-        elif emf == "E":
-            Para = np.stack((self.getE(time, "x"),
-                             self.getE(time, "y"),
-                             self.getE(time, "z")),axis=-1)
+        #project vector 'v' in basis 'e' along direction 'comp'
+        if comp==0:   #parallel to 'e'
+            baseX = ex
+            baseY = ey
+            baseZ = ez
 
-        #normal vector
-        Normal = np.cross(Para, self.buildUnitVector(Para.shape, direction="y"))
-        # Normal = (Fy*ref_vector[...,2] - Fz*ref_vector[...,1] +
-        #           Fz*ref_vector[...,0] - Fx*ref_vector[...,2] +
-        #           Fx*ref_vector[...,1] - Fy*ref_vector[...,0])
+        else: #e x unit vector I
+            baseX, baseY, baseZ = self.crossProduct(ex, ey, ez, Ix, Iy, Iz)
 
-        #perp vector
-        Perp = np.cross(Para, Normal)
-        # Normal = (Fy*Normal[...,2] - Fz*Normal[...,1] +
-        #           Fz*Normal[...,0] - Fx*Normal[...,2] +
-        #           Fx*Normal[...,1] - Fy*Normal[...,0])
+            if comp==2: #e x (e x unit vector I)
+                baseX, baseY, baseZ = self.crossProduct(ex, ey, ez, baseX, baseY, baseZ)
 
-        #normalization
-        np.divide(Para  , np.linalg.norm(Para,   axis=-1, keepdims=True), out = Para)
-        np.divide(Normal, np.linalg.norm(Normal, axis=-1, keepdims=True), out = Normal)
-        np.divide(Perp,   np.linalg.norm(Perp,   axis=-1, keepdims=True), out = Perp)
+        return (vx*baseX + vy*baseY + vz*baseZ) / np.sqrt(baseX**2+baseY**2+baseZ**2)
 
-        return Para, Normal, Perp
 
 
     #--------------------------------------------------------------
-    def dot_product(self, A, B):
+    def findCell(self,x1,x2,x3):
 
-        return (A[...,0]*B[...,0]+
-                A[...,1]*B[...,1]+
-                A[...,2]*B[...,2])
+        #finds cell indexes from macroparticle positions
+
+        if len(self.grid)==1:
+            i = np.int_(x1 // self.meshSize[0])
+
+            return i
+
+        elif len(self.grid)==2:
+            i = np.int_(x1 // self.meshSize[0])
+            j = np.int_(x2 // self.meshSize[1])
+
+            return i, j
+
+        elif len(self.grid)==3:
+            i = np.int_(x1 // self.meshSize[0])
+            j = np.int_(x2 // self.meshSize[1])
+            k = np.int_(x3 // self.meshSize[2])
+
+            return i, j, k
+
+
+    #--------------------------------------------------------------
+    def magCurv(self, x1, x2, x3,
+                      bx, by, bz, time):
+
+        #calculate magnetic field curvature at macroparticle position
+        #need norm of magnetic field seen by the macroparticle 'b'
+
+        #get gradient of magnetic field in the cell containing the macroparticle
+        #from values on grid
+        Bx = self.getB(time, "x")
+        By = self.getB(time, "y")
+        Bz = self.getB(time, "z")
+
+        if len(self.grid)==1:
+            dx = self.meshSize
+            i = self.findCell(x1,x2,x3)   #contains index of cell for each macroparticle
+
+            #len(B[i]) = #parts, can be larger than len(B)
+            #corresponds to B in cell with index i for each macroparticle
+            kappaX = (Bx[i+1] - Bx[i])/dx*bx
+            kappaY = (By[i+1] - By[i])/dx*bx
+            kappaZ = (Bz[i+1] - Bz[i])/dx*bx
+
+        elif len(self.grid)==2:
+            dx, dy = self.meshSize
+            i, j = self.findCell(x1,x2,x3)
+
+            kappaX = ((Bx[i+1,j  ] - Bx[i,j])/dx*bx +
+                      (Bx[i  ,j+1] - Bx[i,j])/dy*by)
+
+            kappaY = ((By[i+1,j] - By[i,j])/dx*bx +
+                      (By[i  ,j+1] - By[i,j])/dy*by)
+
+            kappaZ = ((Bz[i+1,j] - Bz[i,j])/dx*bx +
+                      (Bz[i  ,j+1] - Bz[i,j])/dy*by)
+
+        elif len(self.grid)==3:
+            dx, dy, dz = self.meshSize
+            i, j, k = self.findCell(x1,x2,x3)
+
+            kappaX = ((Bx[i+1,j  ,k  ] - Bx[i,j,k])/dx*bx +
+                      (Bx[i  ,j+1,k  ] - Bx[i,j,k])/dy*by +
+                      (Bx[i  ,j  ,k+1] - Bx[i,j,k])/dz*bz)
+
+            kappaY = ((By[i+1,j  ,k  ] - By[i,j,k])/dx*bx +
+                      (By[i  ,j+1,k  ] - By[i,j,k])/dy*by +
+                      (By[i  ,j  ,k+1] - By[i,j,k])/dz*bz)
+
+            kappaZ = ((Bz[i+1,j  ,k  ] - Bz[i,j,k])/dx*bx +
+                      (Bz[i  ,j+1,k  ] - Bz[i,j,k])/dy*by +
+                      (Bz[i  ,j  ,k+1] - Bz[i,j,k])/dz*bz)
+
+        norm2 = bx**2+by**2+bz**2
+
+        return kappaX/norm2, kappaY/norm2, kappaZ/norm2
+
+
+
+    #--------------------------------------------------------------
+    def createTagsFile(self, species, outPath, step=1):
+
+        tag = self.getRaw(self.getTimeAxis(raw=True), species, "tag")   #[time,part]
+
+        start=True
+        for t in tag:
+            if start:
+                stackedTags = t
+                start=False
+            else:
+                #false if tag is NOT already set
+                cond = np.isin(t,stackedTags)
+                #add tag if both node and particle number are not already in
+                stackedTags = np.vstack((stackedTags,
+                                         t[~np.logical_and(cond[:,0],cond[:,1])]))
+
+        #sort the tags
+        # stackedTags=sorted(stackedTags, key=operator.itemgetter(0, 1))[::step]
+        with open(outPath,'w') as f:
+            # First line of file should contain the total number of tags followed by a comma
+            f.write(str(len(stackedTags))+',\n')
+            print(species,len(stackedTags),"tags")
+            # The rest of the file is just the node id and particle id for each tag, each followed by a comma
+            for node_id,particle_id in stackedTags:
+                f.write(str(node_id)+', '+str(particle_id)+',\n')
+
+        return

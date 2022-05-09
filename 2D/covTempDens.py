@@ -51,10 +51,10 @@ def cov(a,b):
     return c
 
 #----------------------------------------------
-cov_iL = cov(o.getUth(time,"iL","x")**2*o.getRatioQM("iL"),
+cov_iL = cov(o.getUth(time,"iL","x")**2*o.rqm[o.sIndex("iL")],
               o.getCharge(time, "iL"))
 
-cov_iR = cov(o.getUth(time,"iR","x")**2*o.getRatioQM("iR"),
+cov_iR = cov(o.getUth(time,"iR","x")**2*o.rqm[o.sIndex("iR")],
               o.getCharge(time,"iR"))
 
 cov_eL = cov(o.getUth(time,"eL","x")**2,

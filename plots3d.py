@@ -10,6 +10,17 @@ import sys, os, glob, csv
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.patches import Polygon
 
+#----------------------------------------------
+params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 1,
+        'lines.markersize' : 3, 'xtick.labelsize' : 9, 'ytick.labelsize' : 9,
+        'font.size': 9,'legend.fontsize': 9, 'legend.handlelength' : 1.5,
+        'legend.borderpad' : 0.1,'legend.labelspacing' : 0.1, 'axes.linewidth' : 1,
+        'text.usetex': True}
+plt.rcParams.update(params)
+
+#----------------------------------------------
+
+
 def getFrameFile(folder, frameNum):
     if folder[-1] != '/': folder += '/'
     files = sorted(glob.glob(folder+"*.h5"))
@@ -34,16 +45,6 @@ def get3D(froot,diag,frame,mult=1,xlim=[],ylim=[],zlim=[],smooth=0):
     if froot[-1] != '/': froot += '/'
     d = h5py.File(sorted(glob.glob(froot+'*.h5'))[frame],'r')
     value = d[diag][:].T*mult
-
-    """
-    added here mask
-    """
-    # value[np.abs(value)<0.2]=0.
-
-    """
-    added here mask
-    """
-
     x0,x1 = d['AXIS']['AXIS1']
     y0,y1 = d['AXIS']['AXIS2']
     z0,z1 = d['AXIS']['AXIS3']
@@ -291,7 +292,7 @@ def pathtrace(rho,bounds,rcamera,ncamera,dcamera,fov,pixels,dr,opacity_scale_fun
 def plotPathTrace(froots,diags,frame,rcamera,thcamera,pixels,dr,figsize,dpi,axesback=True,axesfront=True,image=True,
                    combineFunc=lambda v:v[0],mult=1,xlim=[],ylim=[],zlim=[],vlim=[],cmap='jet',vlabel='',xslices=np.array([1e10]),
                    yslices=np.array([1e10]),zslices=np.array([1e10]),opacity=1,dcamera=1,fov=(1.5,1),save='',show=True,
-                   valueTransparent='auto',scales=[1,1,1],offsets=[0,0,0],cbarloc='upper right',
+                   valueTransparent='auto',scale_axes=[1,1,1],scale_aspect=[1,1,1],offsets=[0,0,0],cbarloc='upper right',
                    tickparams=[[5,1],[5,1],[5,1]]):
 
     '''
@@ -354,7 +355,8 @@ def plotPathTrace(froots,diags,frame,rcamera,thcamera,pixels,dr,figsize,dpi,axes
                             will scale linearly from that value.
                     'None': Opacity will not depend on the value.
                     'auto': it will be set to the smaller value in vlim, or 0 if vlim is both negative and positive
-            scales: 3-tuple of floats ([1,1,1]); scales the simulation data axes lengths by these factors (x,y,z)
+            scale_axes: 3-tuple of floats ([1,1,1]); scale_aspect the simulation data axes values by these factors (x,y,z)
+            scale_aspect: 3-tuple of floats ([1,1,1]); scale_aspect the 3D volume aspect ratio by these factors (x,y,z)
             offsets: 3-tuple of floats ([0,0,0]); Shifts the simualtion data spatial position by this amount
                                                   before applying optional rescaling.
             cbarloc: string ('upper right'); colorbar location (see matploblib documentation).
@@ -372,17 +374,17 @@ def plotPathTrace(froots,diags,frame,rcamera,thcamera,pixels,dr,figsize,dpi,axes
         values.append(value)
     value = combineFunc(values) # Combine possible multiple data files to a single 3D array for plotting
     # Shift the data position
-    x = (x-offsets[0])#*scales[0]
-    y = (y-offsets[1])#*scales[1]
-    z = (z-offsets[2])#*scales[2]
+    x = (x*scale_axes[0]-offsets[0])
+    y = (y*scale_axes[1]-offsets[1])
+    z = (z*scale_axes[2]-offsets[2])
     # Get the box size
     x0,x1 = x[0],x[-1]
     y0,y1 = y[0],y[-1]
     z0,z1 = z[0],z[-1]
     # Rescale the data
-    x0s,x1s = x0*scales[0],x1*scales[0]
-    y0s,y1s = y0*scales[1],y1*scales[1]
-    z0s,z1s = z0*scales[2],z1*scales[2]
+    x0s,x1s = x0*scale_aspect[0],x1*scale_aspect[0]
+    y0s,y1s = y0*scale_aspect[1],y1*scale_aspect[1]
+    z0s,z1s = z0*scale_aspect[2],z1*scale_aspect[2]
     bounds = x0s,x1s,y0s,y1s,z0s,z1s
     box0,box1 = np.array([bounds[0],bounds[2],bounds[4]]),np.array([bounds[1],bounds[3],bounds[5]])
     # If vlim is not specified, go from data min to max
@@ -507,16 +509,16 @@ def plotPathTrace(froots,diags,frame,rcamera,thcamera,pixels,dr,figsize,dpi,axes
             tickparams = [
                 # direction, label, axis_bounds, tickdir, dmajor, dminor, lenmajor, lenminor,
                 #      horizontal_align, vertical_align, flip it, axis index
-                ['x',r'$x~(c/\omega_p)$',np.array([[x0s,y0s,z0s],[x1s,y0s,z0s]]),yhat,
+                ['x',r'$x\ [c/\omega_{pi}]$',np.array([[x0s,y0s,z0s],[x1s,y0s,z0s]]),yhat,
                  tp[0][0],tp[0][1],lmajor,lminor,'left','center',False,0],
-                ['y',r'$y~(c/\omega_p)$',np.array([[x0s,y0s,z0s],[x0s,y1s,z0s]]),xhat,
+                ['y',r'$y\ [c/\omega_{pi}]$',np.array([[x0s,y0s,z0s],[x0s,y1s,z0s]]),xhat,
                  tp[1][0],tp[1][1],lmajor,lminor,'right','top',True,1],
-                ['z',r'$z~(c/\omega_p)$',np.array([[x0s,y1s,z0s],[x0s,y1s,z1s]]),xhat,
+                ['z',r'$z\ [c/\omega_{pi}]$',np.array([[x0s,y1s,z0s],[x0s,y1s,z1s]]),xhat,
                  tp[2][0],tp[2][1],lmajor,lminor,'right','top',True,2],
             ]
             angle = 0*1e10
             for axisname,label,(r1,r2),tickdir,dmajor,dminor,lenmajor,lenminor,ha,va,flip,iax in tickparams:
-                scale = scales[iax]
+                scale = scale_aspect[iax]
                 n = norm(r2-r1) # Direction of axis
                 d = mag(r2-r1) # legnth of axis line
 

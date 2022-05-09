@@ -16,13 +16,13 @@ NCPUperNodes = 64
 Nthreads = 4
 
 Ncell = np.array([512,512,512])
-duration = 1000               #in units of 1/w_pi
+duration = 1000              #in units of 1/w_pi
 
-v  = 0.5                     #in units of c (=beta)
+v  = 0.5                    #velocity in units of c (=beta)
 n0 = 0.5     #density in proper frame
 T  = 1e-6    #in units of me * c^2 (=511 KeV) in rest frame
 
-mu = 64
+mu = 32
 
 dx = 1/2.       #in units of c/w_pe
 dy = 1/2.
@@ -33,24 +33,34 @@ nPop = 4
 
 dtDump = 50.    #dump time step desired in units of 1/w_pi
 
+#in units of c/wpi
+# zoneX = (0,1)
+# zoneY = (0,15)
+# zoneZ = (15,25)
+# zoneCells = (zoneX[1]-zoneX[0])*(zoneY[1]-zoneY[0])*(zoneZ[1]-zoneZ[0])
+# t<400 t>70
 #--------------------------------------------------------------
-gamma = 1./np.sqrt(1-v**2)
-u = gamma * v
-n = gamma * n0
+lorentz = 1./np.sqrt(1-v**2)
+u = lorentz * v   #momentum
+n = lorentz * n0
 uthe = np.sqrt(T)
 uthi = np.sqrt(T/mu)
 
-B = 10.
-t_ci_wpe = 1. / (B/(gamma*mu))
+# B = 10.
+# t_ci_wpe = 1. / (B/(gamma*mu))
 ratio_l_i_l_e = np.sqrt(mu)
-ratio_l_d_l_e = np.sqrt(T/gamma)
+ratio_l_d_l_e = np.sqrt(T/lorentz)
 
-gammaIfil = v  #[wpi]
+gammaIfil = v/lorentz  #[wpi]
 lambdaIfil = 2*np.pi   #[c/wpi]
 R0 = lambdaIfil*np.sqrt(mu)/4  #typical radius of ion filament [c/wpe]
+
 gammaKink = 3/2 * v * np.sqrt(1/(mu*R0))    #[wpi]
 lambdaKink = 2*np.pi * 2/3 * np.sqrt(R0)    #[c/wpi]
-tEq = (8/gammaIfil + 8/gammaKink)*2  #assuming 8 e-foldings and an empyrical factor 2 correction
+kKink = 2*np.pi/lambdaKink
+
+#assuming 8 e-foldings and an empyrical factor 5 correction for isotropization time
+tEq = (8/gammaIfil + 8/gammaKink)*5
 
 if dim=="1D":
     Ncell = Ncell[0]
@@ -75,11 +85,17 @@ else:         dt*=0.9999
 nIter = int(np.ceil(duration*np.sqrt(mu)/dt))
 ndumpTot = int(np.ceil(duration/dtDump))      #total number of dumps desired
 nDump = int(np.floor(nIter/ndumpTot))
+dtDumpWpe = dtDump*np.sqrt(mu)
 
 nbrPart = ppc*np.product(Ncell)*nPop
-t_estimate = 4e-7 * nIter*nbrPart /3600. *2   #400ns per part per dt, factor 2 correction
-size = 32./8. / (1024.**3) * np.product(Ncell)*ndumpTot
+t_estimate = 1e-6 * nIter*nbrPart /3600. *3   #1us per part per dt, factor 3 correction
+sizeDump = 32./8. / (1024.**3) * np.product(Ncell)*ndumpTot
 Ncores = Nnodes*NCPUperNodes
+durationWpe = duration*np.sqrt(mu)
+num_par_max = int(3*nbrPart/(Nthreads*Ncores))
+
+kmin = 2*np.pi/(Lx/np.sqrt(mu))
+kmax = np.pi/(dx/np.sqrt(mu))
 
 #--------------------------------------------------------------
 #get domain decomposition
@@ -97,7 +113,7 @@ if dim!="1D":
         c=np.array([x for x in itertools.combinations(d,len(Ncell))
                             if np.product(x)==Ncores])
     except np.AxisError:
-        sys.exit("Could not find domain decomposition")
+        raise ValueError("Could not find domain decomposition")
 
     #check if sqrt or cubic sqrt in dividors
     sq = [p for p in d if p**len(Ncell) == Ncores]
@@ -144,11 +160,11 @@ elif dim=="3D":
     print("Lz =",Lx,"[c/wpe] <->",round(Lz/ratio_l_i_l_e,1),"[c/wpi]")
 
 print("-------------------------------")
-print("tFinal =",round(duration*np.sqrt(mu)),"[1/wpe] <->",
+print("tFinal =",round(durationWpe),"[1/wpe] <->",
                  round(duration,1),"[1/wpi]")
 print("dt =",round(dt,r))
 print("nDump =",nDump)
-print("num_par_max =",int(3*nbrPart/(Nthreads*Ncores)))
+print("num_par_max =",num_par_max)
 
 print("-------------------------------")
 print("n =",round(n,r))
@@ -161,20 +177,20 @@ print("-------------------------------")
 print("mu =",mu)
 print("li/le =",round(ratio_l_i_l_e,r))
 print("lD/le =",round(ratio_l_d_l_e,r))
-print("lorentz =",round(gamma,r))
-print("kmin =",round(2*np.pi/(Lx/np.sqrt(mu)),r),
-      "| kmax =",round(np.pi/(dx/np.sqrt(mu)),r),"[wpi/c] (x)")
+print("lorentz =",round(lorentz,r))
+print("kmin =",round(kmin,r),
+      "| kmax =",round(kmax,r),"[wpi/c] (x)")
 print("-------------------------------")
 
 print("gammaIfil =",round(gammaIfil,r),"[wpi]")
 print("gammaKink =",round(gammaKink,r),"[wpi]")
-print("kKink =",round(2*np.pi/lambdaKink,r),"[wpi/c]")
+print("kKink =",round(kKink,r),"[wpi/c]")
 print("tEq =",round(tEq,1),"[1/wpi]")
 
 print("-------------------------------")
 print("nIter =",nIter)
 print("ndumpTot =",ndumpTot)
-print("dtDump =",round(dtDump*np.sqrt(mu),1),"[1/wpe] <->",
+print("dtDump =",round(dtDumpWpe,1),"[1/wpe] <->",
                  dtDump,"[1/wpi]")
 
 print("-------------------------------")
@@ -190,7 +206,7 @@ print("-------------------------------")
 print("Estimated time:", round(t_estimate/Ncores,1),
       "hours on", Ncores,"CPU cores -",
       round(t_estimate,1),"hours sys")
-print("Size of data dump:", round(size,1),"GB per grid quantity")
+print("Size of data dump:", round(sizeDump,1),"GB per grid quantity")
 print("-------------------------------")
 
 

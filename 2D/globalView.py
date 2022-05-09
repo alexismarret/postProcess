@@ -43,13 +43,13 @@ UiL = o.getUfluid(time, "iL", "x",av=(1,2))
 UeL = o.getUfluid(time, "eL", "x",av=(1,2))
 # UeR = np.mean(o.getUfluid(time, "eR", "x"),axis=(1,2))
 
-TiLx = np.mean(o.getUth(time, "iL", "x")**2,axis=(1,2)) * o.getRatioQM("iL")
+TiLx = np.mean(o.getUth(time, "iL", "x")**2,axis=(1,2)) * o.rqm[o.sIndex("iL")]
 # TiRx = np.mean(o.getUth(time, "iR", "x")**2,axis=(1,2)) * o.getRatioQM("iR")
 
 TeLx = np.mean(o.getUth(time, "eL", "x")**2,axis=(1,2))
 # TeRx = np.mean(o.getUth(time, "eR", "x")**2,axis=(1,2))
 
-TiLy = np.mean(o.getUth(time, "iL", "y")**2,axis=(1,2)) * o.getRatioQM("iL")
+TiLy = np.mean(o.getUth(time, "iL", "y")**2,axis=(1,2)) * o.rqm[o.sIndex("iL")]
 # TiRy = np.mean(o.getUth(time, "iR", "y")**2,axis=(1,2)) * o.getRatioQM("iR")
 
 TeLy = np.mean(o.getUth(time, "eL", "y")**2,axis=(1,2))
