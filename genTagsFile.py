@@ -19,12 +19,12 @@ species=["eL"]
 step = 1
 
 #----------------------------------------------
-outPath = o.path+"/tags/"
+outPath = o.path+"/tags"
 if not os.path.exists(outPath):
     os.makedirs(outPath)
 else:
-    for file in os.listdir(outPath): os.remove(outPath+file)
+    for file in os.listdir(outPath): os.remove(outPath+"/"+file)
 
 #----------------------------------------------
 for i in range(len(species)):
-        o.createTagsFile(species[i],outPath+species[i]+".tags",step=step)
+        o.createTagsFile(species[i],outPath+"/"+species[i]+".tags",step=step)

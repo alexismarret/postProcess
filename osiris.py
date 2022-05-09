@@ -10,8 +10,7 @@ import glob
 import os
 import numpy as np
 import parallelFunctions as pf
-import operator
-import numba
+
 import time as ti
 
 class Osiris:
@@ -753,10 +752,12 @@ class Osiris:
         #sort the tags
         # stackedTags=sorted(stackedTags, key=operator.itemgetter(0, 1))
         stackedTags = stackedTags[::step]
+
         with open(outPath,'w') as f:
             # First line of file should contain the total number of tags followed by a comma
             f.write(str(len(stackedTags))+',\n')
             print(species,len(stackedTags),"tags")
+
             # The rest of the file is just the node id and particle id for each tag, each followed by a comma
             for node_id,particle_id in stackedTags:
                 f.write(str(node_id)+', '+str(particle_id)+',\n')
