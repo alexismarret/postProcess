@@ -41,109 +41,123 @@ class Osiris:
         except IndexError:
             raise ValueError("Cannot find input file in '"+self.path+"'")
 
+        #open input file
+        with open(input_file) as f:
+            inputs = f.readlines()
+
         Ns=0
         s=0
         cat=""
 
-        #open input file
-        with open(input_file) as f:
-            for l in f.readlines():
+        for l in inputs:
 
-                #remove brackets, spaces, line breaks
-                l = l.replace("{","").replace("}","").replace(" ","").replace("\n","")
+            #remove brackets, spaces, line breaks
+            l = l.replace("{","").replace("}","").replace(" ","").replace("\n","")
 
-                #skip empty and commented lines
-                if l=="" or l[0]=="!": continue
+            #skip empty and commented lines
+            if l=="" or l[0]=="!": continue
 
-                #find needed categories
-                if ((l=="diag_emf")     or
-                    (l=="diag_species") or
-                    (l=="diag_current")): cat = l
+            #find needed categories
+            if ((l=="diag_emf")     or
+                (l=="diag_species") or
+                (l=="diag_current")): cat = l
 
-                #filter for numerical inputs
-                elif "=" in l:
-                    #remove d0 notation and quote
-                    l = l.replace("d0","").replace('"','')
+            #filter for numerical inputs
+            elif "=" in l:
+                #remove d0 notation and quote
+                l = l.replace("d0","").replace('"','')
 
-                    #handle comments next to value, remove last comma
-                    try:               value = l[l.index("=")+1:l.index("!")-1]
-                    except ValueError: value = l[l.index("=")+1:-1]
+                #handle comments next to value, remove last comma
+                try:               value = l[l.index("=")+1:l.index("!")-1]
+                except ValueError: value = l[l.index("=")+1:-1]
 
-                    #---------------------------
-                    #grid parameters
-                    if "nx_p" in l:
-                        self.grid = np.int_(value.split(","))
+                #---------------------------
+                #grid parameters
+                if "nx_p" in l:
+                    self.grid = np.int_(value.split(","))
 
-                    elif "xmin" in l:
-                        self.gridPosMin = np.float_(value.split(","))
+                elif "xmin" in l:
+                    self.gridPosMin = np.float_(value.split(","))
 
-                    elif "xmax" in l:
-                        self.gridPosMax = np.float_(value.split(","))
+                elif "xmax" in l:
+                    self.gridPosMax = np.float_(value.split(","))
 
-                    #---------------------------
-                    #time parameters
-                    elif "dt=" in l:
-                        self.dt = float(value)
+                #---------------------------
+                #time parameters
+                elif "dt=" in l:
+                    self.dt = float(value)
 
-                    elif "ndump=" in l:
-                        self.ndump = int(value)
+                elif "ndump=" in l:
+                    self.ndump = int(value)
 
-                    elif "tmin=" in l:
-                        self.tmin = float(value)
+                elif "tmin=" in l:
+                    self.tmin = float(value)
 
-                    elif "tmax=" in l:
-                        self.tmax = float(value)
+                elif "tmax=" in l:
+                    self.tmax = float(value)
 
-                    #---------------------------
-                    #EM parameters
-                    elif "ext_b0" in l:
-                        self.ext_b0 = np.float_(value.split(","))
+                #---------------------------
+                #EM parameters
+                elif "ext_b0" in l:
+                    self.ext_b0 = np.float_(value.split(","))
 
-                    elif "ndump_fac_ene_int=" in l:
-                        self.ndump_fac_ene_int = int(value)
+                elif "ndump_fac_ene_int=" in l:
+                    self.ndump_fac_ene_int = int(value)
 
-                    elif (cat=="diag_emf") and ("ndump_fac=") in l:
-                        self.ndump_facF = int(value)
+                #---------------------------
+                #particles parameters
+                elif ("num_species=" in l) or ("num_cathode=" in l):
+                    Ns+=int(value)
+                    self.ndump_facP       = np.zeros(Ns)
+                    self.ndump_fac_ene    = np.zeros(Ns)
+                    self.ndump_fac_raw    = np.zeros(Ns)
+                    self.ndump_fac_tracks = np.zeros(Ns)
+                    self.niter_tracks     = np.zeros(Ns)
+                    self.species_name     = np.empty(Ns, dtype='object')
+                    self.rqm              = np.zeros(Ns)
+                    self.ppc              = np.zeros(Ns)
+                    self.n0               = np.zeros(Ns)
 
-                    #---------------------------
-                    #particles parameters
-                    elif ("num_species=" in l) or ("num_cathode=" in l):
-                        Ns+=int(value)
-                        self.ndump_facP    = np.zeros(Ns)
-                        self.ndump_fac_ene = np.zeros(Ns)
-                        self.ndump_fac_raw = np.zeros(Ns)
-                        self.species_name  = np.empty(Ns, dtype='object')
-                        self.rqm           = np.zeros(Ns)
-                        self.ppc           = np.zeros(Ns)
-                        self.n0            = np.zeros(Ns)
+                elif "name=" in l:
+                    if self.species_name[s] != None: s+=1
+                    self.species_name[s] = value
 
-                    elif "name=" in l:
-                        if self.species_name[s] != None: s+=1
-                        self.species_name[s] = value
+                elif "rqm=" in l:
+                    if self.rqm[s] != 0: s+=1
+                    self.rqm[s] = float(value)
 
-                    elif "rqm=" in l:
-                        if self.rqm[s] != 0: s+=1
-                        self.rqm[s] = float(value)
+                elif "num_par_x" in l:
+                    if self.ppc[s] != 0: s+=1
+                    self.ppc[s] = np.prod(np.int_(value.split(",")))
 
-                    elif "num_par_x" in l:
-                        if self.ppc[s] != 0: s+=1
-                        self.ppc[s] = np.prod(np.int_(value.split(",")))
+                elif "density=" in l:
+                    self.n0[s] = float(value)
 
-                    elif "density=" in l:
-                        if self.n0[s] != 0: s+=1
-                        self.n0[s] = float(value)
-
-                    elif (cat=="diag_species") and ("ndump_fac=" in l):
+                #---------------------------
+                #ndump parameters
+                elif (cat=="diag_species"):
+                    if ("ndump_fac=" in l):
                         self.ndump_facP[s] = int(value)
 
-                    elif (cat=="diag_species") and ("ndump_fac_ene=" in l):
+                    elif ("ndump_fac_ene=" in l):
                         self.ndump_fac_ene[s] = int(value)
 
-                    elif (cat=="diag_species") and ("ndump_fac_raw=" in l):
+                    elif ("ndump_fac_raw=" in l):
                         self.ndump_fac_raw[s] = int(value)
 
-                    elif (cat=="diag_current") and ("ndump_fac=" in l):
+                    elif ("ndump_fac_tracks=" in l):
+                        self.ndump_fac_tracks[s] = int(value)
+
+                    elif ("niter_tracks=" in l):
+                        self.niter_tracks[s] = int(value)
+
+                elif (cat=="diag_current"):
+                    if ("ndump_fac=" in l):
                         self.ndump_facC = int(value)
+
+                elif (cat=="diag_emf"):
+                    if ("ndump_fac=") in l:
+                        self.ndump_facF = int(value)
 
         return
 
