@@ -12,7 +12,7 @@ from inspect import signature
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
 # import multiprocessing.pool as mpp
-from memory_profiler import profile
+# from memory_profiler import profile
 import time as ti
 
 # import warnings

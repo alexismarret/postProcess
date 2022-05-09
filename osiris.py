@@ -588,14 +588,8 @@ class Osiris:
     def setup_dir(self, path, rm = True):
 
         if os.path.exists(path) and rm:
-            for files in glob.glob(path+"/*.png"):
-                os.remove(files)
-            for files in glob.glob(path+"/*.eps"):
-                os.remove(files)
-            for files in glob.glob(path+"/*.pdf"):
-                os.remove(files)
-            for files in glob.glob(path+"/*.mp4"):
-                os.remove(files)
+            for ext in ("png","eps","pdf","mp4"):
+                for file in glob.glob(path+"/*."+ext): os.remove(file)
 
         elif not os.path.exists(path):
             os.makedirs(path)
@@ -740,22 +734,25 @@ class Osiris:
     #--------------------------------------------------------------
     def createTagsFile(self, species, outPath, step=1):
 
-        tag = self.getRaw(self.getTimeAxis(raw=True), species, "tag")   #[time,part]
+        time = self.getTimeAxis(species,raw=True)
+        tag = self.getRaw(time, species, "tag")   #[time,part]
 
         start=True
-        for t in tag:
+        for i in range(len(tag)):
+
             if start:
-                stackedTags = t
+                stackedTags = tag[i]
                 start=False
             else:
                 #false if tag is NOT already set
-                cond = np.isin(t,stackedTags)
+                cond = np.isin(tag[i],stackedTags)
+                keep = ~np.logical_and(cond[:,0],cond[:,1])
                 #add tag if both node and particle number are not already in
-                stackedTags = np.vstack((stackedTags,
-                                         t[~np.logical_and(cond[:,0],cond[:,1])]))
+                stackedTags = np.vstack((stackedTags, tag[i][keep]))
 
         #sort the tags
-        # stackedTags=sorted(stackedTags, key=operator.itemgetter(0, 1))[::step]
+        # stackedTags=sorted(stackedTags, key=operator.itemgetter(0, 1))
+        stackedTags = stackedTags[::step]
         with open(outPath,'w') as f:
             # First line of file should contain the total number of tags followed by a comma
             f.write(str(len(stackedTags))+',\n')

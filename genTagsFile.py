@@ -8,18 +8,23 @@ Created on Wed May  4 15:33:13 2022
 
 import osiris
 import os
+import glob
 import numpy as np
 
 #----------------------------------------------
-run = "CS3DtagsRetrieve"
+run = "test3DdumpRaw"
 o = osiris.Osiris(run)
 
-species=["eL","iL"]
-step = 1000
+species=["eL"]
+step = 1
+
+#----------------------------------------------
+outPath = o.path+"/tags/"
+if not os.path.exists(outPath):
+    os.makedirs(outPath)
+else:
+    for file in os.listdir(outPath): os.remove(outPath+file)
 
 #----------------------------------------------
 for i in range(len(species)):
-
-    outPath = o.path+"/"+run+"_"+species[i]+".tags"
-
-    o.createTagsFile(species[i],outPath,step=step)
+        o.createTagsFile(species[i],outPath+species[i]+".tags",step=step)

@@ -31,7 +31,7 @@ dz = 1/2.
 ppc = 8
 nPop = 4
 
-dtDump = 50.    #dump time step desired in units of 1/w_pi
+dtDump = 40.    #dump time step desired in units of 1/w_pi
 
 #in units of c/wpi
 # zoneX = (0,1)
