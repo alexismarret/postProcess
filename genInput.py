@@ -10,31 +10,31 @@ import itertools
 import sys
 
 #--------------------------------------------------------------
-dim = "3D"
-Nnodes = 64
+dim = "2D"
+Nnodes = 4
 NCPUperNodes = 64
 Nthreads = 4
 
 Ncell = np.array([512,512,512])
-duration = 1000              #in units of 1/w_pi
+duration = 60              #in units of 1/w_pi
 
 v  = 0.5                    #velocity in units of c (=beta)
 n0 = 0.5     #density in proper frame
 T  = 1e-6    #in units of me * c^2 (=511 KeV) in rest frame
 
-mu = 32
+mu = 100.
 
-dx = 1/2.       #in units of c/w_pe
-dy = 1/2.
-dz = 1/2.
+dx = 1/4.       #in units of c/w_pe
+dy = 1/4.
+dz = 1/4.
 
-ppc = 8
+ppc = 64
 nPop = 4
 
-dtDump = 40.    #dump time step desired in units of 1/w_pi
+dtDump = 0.5    #dump time step desired in units of 1/w_pi
 
 #in units of c/wpi
-# zoneX = (0,1)
+# zoneX = (0,128)
 # zoneY = (0,15)
 # zoneZ = (15,25)
 # zoneCells = (zoneX[1]-zoneX[0])*(zoneY[1]-zoneY[0])*(zoneZ[1]-zoneZ[0])

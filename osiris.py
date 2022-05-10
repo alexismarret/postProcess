@@ -233,37 +233,38 @@ class Osiris:
         #species time
         if species!=None:
             species_index = self.sIndex(species)
+
             if ene:
-                sIndex = self.sIndex(species) + 1
-                #make sure padding is correct
-                if sIndex < 10: sIndex = "0" + str(sIndex)
-                else:           sIndex = str(sIndex)
-                N = len(np.loadtxt(self.path+"/HIST/par"+sIndex+"_ene",skiprows=2,usecols=2))
-                delta = self.dt*self.ndump*self.ndump_fac_ene[species_index]
+                sIndex = species_index + 1
+                if sIndex < 10: sIndex = "0" + str(sIndex)   #make sure padding is correct
+                N = len(np.loadtxt(self.path+"/HIST/par"+str(sIndex)+"_ene",skiprows=2,usecols=2))
+                multFactor = self.ndump_fac_ene[species_index]
 
             elif raw:
                 #use glob.glob to ignore hidden files
                 N = len(glob.glob(self.path+"/MS/RAW/"+species+"/*"))
-                delta = self.dt*self.ndump*self.ndump_fac_raw[species_index]
+                multFactor = self.ndump_fac_raw[species_index]
 
             else:
                 #retrieve number of dumps from any of the folders in /DENSITY
                 N = len(glob.glob(self.path+"/MS/UDIST/"+species+"/"+
                                    os.listdir(self.path+"/MS/UDIST/"+species)[0]+"/*"))
-                delta = self.dt*self.ndump*self.ndump_facP[species_index]
+                multFactor = self.ndump_facP[species_index]
 
         #fields time
         else:
             if ene:
                 N = len(np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=2))
-                delta = self.dt*self.ndump*self.ndump_fac_ene_int
+                multFactor = self.ndump_fac_ene_int
 
             else:
                 #retrieve number of dumps from any of the folders in /FLD
                 N = len(glob.glob(self.path+"/MS/FLD/"+
                                    os.listdir(self.path+"/MS/FLD")[0]+"/*"))
-                delta = self.dt*self.ndump*self.ndump_facF
+                multFactor = self.ndump_facF
 
+
+        delta = self.dt*self.ndump*multFactor
         time = np.linspace(self.tmin,(N-1)*delta,N)
 
         if self.spNorm!=None: time /= np.sqrt(self.rqm[self.sIndex(self.spNorm)])
