@@ -20,11 +20,12 @@ class Osiris:
 
         self.path = os.environ.get("OSIRIS_RUN_DIR") + "/" + run
         self.allRuns = np.sort(os.listdir(os.environ.get("OSIRIS_RUN_DIR")))
-        self.nbrCores = nbrCores
         self.spNorm = spNorm
+        self.nbrCores = nbrCores
 
         self.parseInput()
 
+        self.ndim = len(self.grid)
         self.boxSize = self.gridPosMax - self.gridPosMin
         self.meshSize = self.boxSize / self.grid
         self.cellHyperVolume = np.prod(self.meshSize)
@@ -135,28 +136,28 @@ class Osiris:
 
                 #---------------------------
                 #ndump parameters
-                elif (cat=="diag_species"):
-                    if ("ndump_fac=" in l):
+                elif cat=="diag_species":
+                    if "ndump_fac=" in l:
                         self.ndump_facP[s] = int(value)
 
-                    elif ("ndump_fac_ene=" in l):
+                    elif "ndump_fac_ene=" in l:
                         self.ndump_fac_ene[s] = int(value)
 
-                    elif ("ndump_fac_raw=" in l):
+                    elif "ndump_fac_raw=" in l:
                         self.ndump_fac_raw[s] = int(value)
 
-                    elif ("ndump_fac_tracks=" in l):
+                    elif "ndump_fac_tracks=" in l:
                         self.ndump_fac_tracks[s] = int(value)
 
-                    elif ("niter_tracks=" in l):
+                    elif "niter_tracks=" in l:
                         self.niter_tracks[s] = int(value)
 
-                elif (cat=="diag_current"):
-                    if ("ndump_fac=" in l):
+                elif cat=="diag_current":
+                    if "ndump_fac=" in l:
                         self.ndump_facC = int(value)
 
-                elif (cat=="diag_emf"):
-                    if ("ndump_fac=") in l:
+                elif cat=="diag_emf":
+                    if "ndump_fac=" in l:
                         self.ndump_facF = int(value)
 
         return
@@ -192,6 +193,8 @@ class Osiris:
         print("ndump_facP =", self.ndump_facP)
         print("ndump_fac_ene =", self.ndump_fac_ene)
         print("ndump_fac_raw =", self.ndump_fac_raw)
+        print("ndump_fac_tracks =", self.ndump_fac_tracks)
+        print("niter_tracks =", self.niter_tracks)
 
         print("-------------------------------")
         print("ndump =", self.ndump)
@@ -262,7 +265,6 @@ class Osiris:
                 N = len(glob.glob(self.path+"/MS/FLD/"+
                                    os.listdir(self.path+"/MS/FLD")[0]+"/*"))
                 multFactor = self.ndump_facF
-
 
         delta = self.dt*self.ndump*multFactor
         time = np.linspace(self.tmin,(N-1)*delta,N)
@@ -668,18 +670,18 @@ class Osiris:
 
         #finds cell indexes from macroparticle positions
 
-        if len(self.grid)==1:
+        if self.ndim==1:
             i = np.int_(x1 // self.meshSize[0])
 
             return i
 
-        elif len(self.grid)==2:
+        elif self.ndim==2:
             i = np.int_(x1 // self.meshSize[0])
             j = np.int_(x2 // self.meshSize[1])
 
             return i, j
 
-        elif len(self.grid)==3:
+        elif self.ndim==3:
             i = np.int_(x1 // self.meshSize[0])
             j = np.int_(x2 // self.meshSize[1])
             k = np.int_(x3 // self.meshSize[2])
@@ -700,7 +702,7 @@ class Osiris:
         By = self.getB(time, "y")
         Bz = self.getB(time, "z")
 
-        if len(self.grid)==1:
+        if self.ndim==1:
             dx = self.meshSize
             i = self.findCell(x1,x2,x3)   #contains index of cell for each macroparticle
 
@@ -710,7 +712,7 @@ class Osiris:
             kappaY = (By[i+1] - By[i])/dx*bx
             kappaZ = (Bz[i+1] - Bz[i])/dx*bx
 
-        elif len(self.grid)==2:
+        elif self.ndim==2:
             dx, dy = self.meshSize
             i, j = self.findCell(x1,x2,x3)
 
@@ -723,7 +725,7 @@ class Osiris:
             kappaZ = ((Bz[i+1,j] - Bz[i,j])/dx*bx +
                       (Bz[i  ,j+1] - Bz[i,j])/dy*by)
 
-        elif len(self.grid)==3:
+        elif self.ndim==3:
             dx, dy, dz = self.meshSize
             i, j, k = self.findCell(x1,x2,x3)
 
