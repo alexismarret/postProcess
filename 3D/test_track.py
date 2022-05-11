@@ -25,12 +25,14 @@ plt.rcParams.update(params)
 plt.close("all")
 
 #----------------------------------------------
-run  ="test3DdumpRawTrack"
+run  ="CS3D"
 o = osiris.Osiris(run,spNorm="iL")
 x = o.getAxis("x")
 y = o.getAxis("y")
 z = o.getAxis("z")
 
+
+raise ValueError
 #----------------------------------------------
 track_data = tr.getTrackData(o.path+'/MS/TRACKS/eL-tracks.h5')
 

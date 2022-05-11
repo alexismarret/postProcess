@@ -10,7 +10,7 @@ import glob
 import os
 import numpy as np
 import parallelFunctions as pf
-
+import operator
 import time as ti
 
 class Osiris:
@@ -20,11 +20,13 @@ class Osiris:
 
         self.path = os.environ.get("OSIRIS_RUN_DIR") + "/" + run
         self.allRuns = np.sort(os.listdir(os.environ.get("OSIRIS_RUN_DIR")))
-        self.spNorm = spNorm
-        self.nbrCores = nbrCores
+
+        try:    self.normFactor = np.sqrt(np.abs(self.rqm[self.sIndex(spNorm)]))
+        except: self.normFactor = 1.
 
         self.parseInput()
 
+        self.nbrCores = nbrCores
         self.ndim = len(self.grid)
         self.boxSize = self.gridPosMax - self.gridPosMin
         self.meshSize = self.boxSize / self.grid
@@ -37,14 +39,13 @@ class Osiris:
     #--------------------------------------------------------------
     def parseInput(self):
 
+        #open input file
         try:
             input_file = glob.glob(self.path+"/*.in")[0]
         except IndexError:
             raise ValueError("Cannot find input file in '"+self.path+"'")
 
-        #open input file
-        with open(input_file) as f:
-            inputs = f.readlines()
+        with open(input_file) as f: inputs = f.readlines()
 
         Ns=0
         s=0
@@ -118,6 +119,8 @@ class Osiris:
                     self.rqm              = np.zeros(Ns)
                     self.ppc              = np.zeros(Ns)
                     self.n0               = np.zeros(Ns)
+                    self.ufl              = np.zeros((Ns,3))
+                    self.uth              = np.zeros((Ns,3))
 
                 elif "name=" in l:
                     if self.species_name[s] != None: s+=1
@@ -133,6 +136,12 @@ class Osiris:
 
                 elif "density=" in l:
                     self.n0[s] = float(value)
+
+                elif "ufl(" in l:
+                    self.ufl[s] = np.float_(value.split(","))
+
+                elif "uth(" in l:
+                    self.uth[s] = np.float_(value.split(","))
 
                 #---------------------------
                 #ndump parameters
@@ -171,6 +180,7 @@ class Osiris:
         print("allRuns =", self.allRuns)
 
         print("-------------------------------")
+        print("ndim =", self.ndim)
         print("grid =", self.grid)
         print("gridPosMin =", self.gridPosMin)
         print("gridPosMax =", self.gridPosMax)
@@ -187,20 +197,28 @@ class Osiris:
         except: pass
 
         print("-------------------------------")
+        print("ndump =", self.ndump)
+        try: print("ndump_fac_ene_int =", self.ndump_fac_ene_int)
+        except: pass
+        try: print("ndump_facF =", self.ndump_facF)
+        except: pass
+        try: print("ndump_facC =", self.ndump_facC)
+        except: pass
+
+        print("-------------------------------")
         print("species_name =", self.species_name)
         print("rqm =", self.rqm)
         print("ppc =", self.ppc)
+        print("n0 =", self.n0)
+        print("ufl =", self.ufl)
+        print("uth =", self.uth)
+
+        print("-------------------------------")
         print("ndump_facP =", self.ndump_facP)
         print("ndump_fac_ene =", self.ndump_fac_ene)
         print("ndump_fac_raw =", self.ndump_fac_raw)
         print("ndump_fac_tracks =", self.ndump_fac_tracks)
         print("niter_tracks =", self.niter_tracks)
-
-        print("-------------------------------")
-        print("ndump =", self.ndump)
-        print("ndump_fac_ene_int =", self.ndump_fac_ene_int)
-        print("ndump_facF =", self.ndump_facF)
-        print("ndump_facC =", self.ndump_facC)
 
         return
 
@@ -225,9 +243,7 @@ class Osiris:
 
         axis = np.linspace(self.gridPosMin[i],(self.grid[i]-1)*self.meshSize[i],self.grid[i])
 
-        if self.spNorm!=None: axis /= np.sqrt(self.rqm[self.sIndex(self.spNorm)])
-
-        return axis
+        return axis / self.normFactor
 
 
     #--------------------------------------------------------------
@@ -267,9 +283,7 @@ class Osiris:
                 multFactor = self.ndump_facF
 
         delta = self.dt*self.ndump*multFactor
-        time = np.linspace(self.tmin,(N-1)*delta,N)
-
-        if self.spNorm!=None: time /= np.sqrt(self.rqm[self.sIndex(self.spNorm)])
+        time = np.linspace(self.tmin,(N-1)*delta,N) / self.normFactor
 
         return time.round(7)
 
@@ -289,7 +303,7 @@ class Osiris:
         if len(index)!=N: raise ValueError("Unknown time for '"+dataPath+"'")
 
         #complete slice if needed
-        slices = [slice(None)]*len(self.grid)
+        slices = [slice(None)]*self.ndim
         if type(sl) in {slice,int}: sl = (sl,)
         for k,s in enumerate(sl): slices[k]=s
 
@@ -327,12 +341,12 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def revertAx(self,a):
+    def revertAx(self, a):
 
         if a==None:
             return (None,)
         else:
-            val = len(self.grid)-1
+            val = self.ndim-1
             a = list(a)
             for i in range(len(a)):
                 if   a[i] == 0: a[i] = val
@@ -346,7 +360,7 @@ class Osiris:
 
         #array containing final indices and step of sliced array
         #None if no slicing in a given direction, and 0 if only one element
-        ind = [None]*len(self.grid)
+        ind = [None]*self.ndim
 
         for k in range(len(ind)):
             #if axis is averaged or single element, set size to 0 and go to next axis
@@ -645,9 +659,7 @@ class Osiris:
     def projectVec(self, vx, vy, vz, ex, ey, ez, comp):
 
         #assumes e!= (0,1,0)
-        Ix = 0.
-        Iy = 1.
-        Iz = 0.
+        Ix, Iy, Iz = 0., 1., 0.
 
         #project vector 'v' in basis 'e' along direction 'comp'
         if comp==0:   #parallel to 'e'
@@ -719,10 +731,10 @@ class Osiris:
             kappaX = ((Bx[i+1,j  ] - Bx[i,j])/dx*bx +
                       (Bx[i  ,j+1] - Bx[i,j])/dy*by)
 
-            kappaY = ((By[i+1,j] - By[i,j])/dx*bx +
+            kappaY = ((By[i+1,j  ] - By[i,j])/dx*bx +
                       (By[i  ,j+1] - By[i,j])/dy*by)
 
-            kappaZ = ((Bz[i+1,j] - Bz[i,j])/dx*bx +
+            kappaZ = ((Bz[i+1,j  ] - Bz[i,j])/dx*bx +
                       (Bz[i  ,j+1] - Bz[i,j])/dy*by)
 
         elif self.ndim==3:
@@ -748,7 +760,7 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def createTagsFile(self, species, outPath, step=1):
+    def createTagsFile(self, species, outPath, step=None):
 
         time = self.getTimeAxis(species,raw=True)
         tag = self.getRaw(time, species, "tag")   #[time,part]
@@ -760,21 +772,20 @@ class Osiris:
                 stackedTags = tag[i]
                 start=False
             else:
-                #false if tag is NOT already set
-                cond = np.isin(tag[i],stackedTags)
+                cond = np.isin(tag[i],stackedTags)   #false if tag is NOT already set
                 keep = ~np.logical_and(cond[:,0],cond[:,1])
                 #add tag if both node and particle number are not already in
                 stackedTags = np.vstack((stackedTags, tag[i][keep]))
 
         #sort the tags
-        # stackedTags=sorted(stackedTags, key=operator.itemgetter(0, 1))
-        stackedTags = stackedTags[::step]
+        stackedTags=sorted(stackedTags, key=operator.itemgetter(0, 1))[::step]
+        # stackedTags = stackedTags[::step]
+        print("Species",species+":",len(stackedTags),"tags")
 
         with open(outPath,'w') as f:
+
             # First line of file should contain the total number of tags followed by a comma
             f.write(str(len(stackedTags))+',\n')
-            print(species,len(stackedTags),"tags")
-
             # The rest of the file is just the node id and particle id for each tag, each followed by a comma
             for node_id,particle_id in stackedTags:
                 f.write(str(node_id)+', '+str(particle_id)+',\n')

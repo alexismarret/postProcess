@@ -9,18 +9,31 @@ from scipy.ndimage import zoom
 import sys, os, glob, csv
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes
 from matplotlib.patches import Polygon
+import matplotlib as mpl
 
 #----------------------------------------------
-params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 1,
-        'lines.markersize' : 3, 'xtick.labelsize' : 9, 'ytick.labelsize' : 9,
-        'font.size': 9,'legend.fontsize': 9, 'legend.handlelength' : 1.5,
-        'legend.borderpad' : 0.1,'legend.labelspacing' : 0.1, 'axes.linewidth' : 1,
-        'text.usetex': True}
-plt.rcParams.update(params)
+def restore_minor_ticks_log_plot(ax, n_subticks=9):
+    """
+    Args:
+        ax:
+        n_subticks: Number of Should be either 4 or 9.
+    """
+
+    if ax is None:
+        ax = plt.gca()
+    # https://stackoverflow.com/a/44079725/5972175
+    locmaj = mpl.ticker.LogLocator(base=10, numticks=1000)
+    ax.xaxis.set_major_locator(locmaj)
+    locmin = mpl.ticker.LogLocator(
+        base=10.0, subs=np.linspace(0, 1.0, n_subticks + 2)[1:-1], numticks=1000
+    )
+    ax.xaxis.set_minor_locator(locmin)
+    ax.xaxis.set_minor_formatter(mpl.ticker.NullFormatter())
+
+    return
+
 
 #----------------------------------------------
-
-
 def getFrameFile(folder, frameNum):
     if folder[-1] != '/': folder += '/'
     files = sorted(glob.glob(folder+"*.h5"))
@@ -367,6 +380,15 @@ def plotPathTrace(froots,diags,frame,rcamera,thcamera,pixels,dr,figsize,dpi,axes
             None
     '''
 
+    #----------------------------------------------
+    params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 1,
+            'lines.markersize' : 3, 'xtick.labelsize' : 9, 'ytick.labelsize' : 9,
+            'font.size': 9,'legend.fontsize': 9, 'legend.handlelength' : 1.5,
+            'legend.borderpad' : 0.1,'legend.labelspacing' : 0.1, 'axes.linewidth' : 1,
+            'text.usetex': True}
+    plt.rcParams.update(params)
+
+    #----------------------------------------------
     # Get simulation data
     values = []
     for froot,diag in zip(froots,diags):

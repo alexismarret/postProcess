@@ -21,9 +21,9 @@ plt.rcParams.update(params)
 # plt.close("all")
 
 #----------------------------------------------
-run = "CS3D"
+run = "CS2Drmhr"
 
-o = osiris.Osiris(run,spNorm="iL")
+o = osiris.Osiris(run,spNorm="eL")
 
 #----------------------------------------------
 st = slice(None,None,1)

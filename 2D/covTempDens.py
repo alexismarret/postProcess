@@ -22,7 +22,7 @@ plt.rcParams.update(params)
 
 #----------------------------------------------
 run  ="CS2Drmhr"
-o = osiris.Osiris(run,spNorm="iL")
+o = osiris.Osiris(run,spNorm="eL")
 
 sx = slice(None,None,1)
 st = slice(None,None,1)

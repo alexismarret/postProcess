@@ -12,11 +12,11 @@ import glob
 import numpy as np
 
 #----------------------------------------------
-run = "test3DdumpRaw"
+run = "CS2Drmhr"
 o = osiris.Osiris(run)
 
-species=["eL"]
-step = 1
+species=["eL","eR","iL","iR"]
+step = 20
 
 #----------------------------------------------
 outPath = o.path+"/tags"

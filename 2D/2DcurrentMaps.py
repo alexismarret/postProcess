@@ -16,7 +16,7 @@ from matplotlib.artist import Artist
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.colors import LogNorm
 
-import parallel_functions as pf
+import parallelFunctions as pf
 
 #----------------------------------------------
 params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 2,
@@ -83,7 +83,7 @@ def plot2D(data,time,extent,ind,figPath):
 
 #----------------------------------------------
 run  ="CS2Drmhr"
-o = osiris.Osiris(run,spNorm="iL")
+o = osiris.Osiris(run,spNorm="eL")
 
 sx = slice(None,None,1)
 st = slice(None,None,1)
@@ -92,12 +92,12 @@ y     = o.getAxis("y")[sx]
 time = o.getTimeAxis("iL")[st]
 
 #----------------------------------------------
-jTotX = (o.getCurrent(time, "eL", "x") +
-          o.getCurrent(time, "eR", "x") +
-          o.getCurrent(time, "iL", "x") +
-          o.getCurrent(time, "iR", "x"))
+# jTotX = (o.getCurrent(time, "eL", "x") +
+#           o.getCurrent(time, "eR", "x") +
+#           o.getCurrent(time, "iL", "x") +
+#           o.getCurrent(time, "iR", "x"))
 
-# jTotX2 = o.getTotCurrent(time, "x")
+jTotX2 = o.getTotCurrent(time, "x")
 
 # v_el=o.getVclassical(time, "eL", "x")
 # v_er=o.getVclassical(time, "eR", "x")
@@ -128,11 +128,11 @@ extent=(min(x),max(x),min(y),max(y))
 path = o.path+"/plots/jTotX"
 o.setup_dir(path)
 
-it = ((jTotX  [s[0]:s[1]],
+it = ((jTotX2  [s[0]:s[1]],
        time        [s[0]:s[1]],
        extent, s[0], path) for s in stages)
 
-pf.parallel(plot2D, it, o.nbrCores, plot=True)
+pf.parallel(plot2D, it, o.nbrCores, noInteract=True)
 
 """
 #----------------------------------------------
