@@ -15,7 +15,7 @@ from matplotlib.artist import Artist
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.colors import LogNorm
 
-import parallel_functions as pf
+import parallelFunctions as pf
 
 #----------------------------------------------
 params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 2,
@@ -110,5 +110,5 @@ it = ((Bz    [s[0]:s[1]],
         extent,
         s[0], path) for s in stages)
 
-pf.parallel(plot2D, it, o.nbrCores, plot=True)
+pf.parallel(plot2D, it, o.nbrCores, noInteract=True)
 

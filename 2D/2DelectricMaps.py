@@ -16,7 +16,7 @@ from matplotlib.artist import Artist
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.colors import LogNorm
 
-import parallel_functions as pf
+import parallelFunctions as pf
 
 #----------------------------------------------
 params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 2,
@@ -85,7 +85,7 @@ def plot2D(data,time,extent,ind,figPath):
     return
 
 #----------------------------------------------
-run  ="counterStreamFast"
+run  ="CS2DrmhrTrack"
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
@@ -95,20 +95,20 @@ y    = o.getAxis("y")[sx]
 time = o.getTimeAxis()[st]
 
 #----------------------------------------------
-Ey = o.getE(time,"y")
+Ex = o.getE(time,"x")
 
 #----------------------------------------------
 stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
 extent=(min(x),max(x),min(y),max(y))
 
 #----------------------------------------------
-path = o.path+"/plots/Ey"
+path = o.path+"/plots/Ex"
 o.setup_dir(path)
 
-it = ((Ey    [s[0]:s[1]],
+it = ((Ex    [s[0]:s[1]],
         time [s[0]:s[1]],
         extent,
         s[0], path) for s in stages)
 
-pf.parallel(plot2D, it, o.nbrCores, plot=True)
+pf.parallel(plot2D, it, o.nbrCores, noInteract=True)
 

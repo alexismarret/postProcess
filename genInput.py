@@ -9,9 +9,12 @@ import numpy as np
 import itertools
 import sys
 
+#1D: power of 2**1: 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096
+#2D: power of 2**2: 1, 4, 16, 64, 256, 1024, 4096
+#3D: power of 2**3: 1, 8, 64, 512, 4096
 #--------------------------------------------------------------
-dim = "2D"
-Nnodes = 4
+dim = "3D"
+Nnodes = 64
 NCPUperNodes = 64
 Nthreads = 4
 
@@ -28,10 +31,10 @@ dx = 1/4.       #in units of c/w_pe
 dy = 1/4.
 dz = 1/4.
 
-ppc = 64
+ppc = 8
 nPop = 4
 
-dtDump = 0.5    #dump time step desired in units of 1/w_pi
+dtDump = 2    #dump time step desired in units of 1/w_pi
 
 #in units of c/wpi
 # zoneX = (0,128)
@@ -101,46 +104,45 @@ kmax = np.pi/(dx/np.sqrt(mu))
 #get domain decomposition
 #two constraints: minimize surface to reduce communication needs
 #and maximize number of cells per core
+def domainDecomposition(Ncores,Ncell):
 
-if dim!="1D":
-    #original indexes of the sorted Ncell array
-    #ind[-1] is index of largest value of Ncell
-    ind = np.argsort(Ncell)
+    #get multiples of Ncores
     d = np.array([x for x in range(1,Ncores+1) if Ncores % x == 0])
-
     #get dividors, except product of itself
-    try:
-        c=np.array([x for x in itertools.combinations(d,len(Ncell))
-                            if np.product(x)==Ncores])
-    except np.AxisError:
-        raise ValueError("Could not find domain decomposition")
+    c=np.array([x for x in itertools.combinations(d,len(Ncell))
+                        if np.product(x)==Ncores])
+    #exit if no dividors
+    if len(c)==0:
+        print("No domain decomposition found for",Ncores,"cores")
+        return [0]*len(Ncell), 0
 
     #check if sqrt or cubic sqrt in dividors
     sq = [p for p in d if p**len(Ncell) == Ncores]
-    #add [Ncores**(1/dim)] if int for 1:1 or 1:1:1 core ratio
+    #add [Ncores**(1/dim)] if integer for 1:1 or 1:1:1 core ratio
     if len(sq)!=0: c = np.vstack((c,sq*len(Ncell)))
 
     #find ratio of cores closest to 1
     ratio = np.prod(c[:,:-1] / c[:,-1][...,None],axis=1)
     indices = [j for j, v in enumerate(ratio) if v==max(ratio)]
 
-    #maximize cells per core among best choice of ratio
-    std = np.zeros(len(indices))
+    #assign cores in spatial directions
+    coresRep=np.zeros((len(indices),len(Ncell)),dtype=int)
     for j,i in enumerate(indices):
 
-        #assign cores in spatial directions
-        coresRep=np.zeros(len(Ncell),dtype=int)
-        for it,index in enumerate(ind): coresRep[index] = c[i,it]
+        #argsort(): original indexes of the sorted Ncell array
+        #argsort()[-1] is index of largest value of Ncell
+        for it,index in enumerate(np.argsort(Ncell)): coresRep[j,index] = c[i,it]
 
-        #measure quality of cells per cores
-        std[j] = np.std(Ncell/coresRep)
+    #measure quality of cells per cores
+    std = np.std(Ncell/coresRep,axis=1)
 
-    best = indices[np.where(std==min(std))[0][0]]
+    #maximize cells per core among best choice of ratio
+    best = np.where((std)==min(std))[0][0]
 
-    #assign cores in spatial directions
-    coresRep=np.zeros(len(Ncell),dtype=int)
-    for it,index in enumerate(ind): coresRep[index] = c[best,it]
+    return coresRep[best], ratio[indices[best]]
 
+#--------------------------------------------------------------
+if dim!="1D": coresRep, ratio = domainDecomposition(Ncores,Ncell)
 
 #--------------------------------------------------------------
 r=5
@@ -199,7 +201,7 @@ if dim=="1D":
     print("Ncores =",Ncores)
     print("Cells per core =",np.round(Ncell/Ncores,1))
 else:
-    print("Ncores =",coresRep,"- ratio =",round(ratio[best],r))
+    print("Ncores =",coresRep,"- ratio =",round(ratio,r))
     print("Cells per core =",np.round(Ncell/coresRep,1))
 
 print("-------------------------------")

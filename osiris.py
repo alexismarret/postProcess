@@ -20,13 +20,13 @@ class Osiris:
 
         self.path = os.environ.get("OSIRIS_RUN_DIR") + "/" + run
         self.allRuns = np.sort(os.listdir(os.environ.get("OSIRIS_RUN_DIR")))
+        self.nbrCores = nbrCores
+
+        self.parseInput()
 
         try:    self.normFactor = np.sqrt(np.abs(self.rqm[self.sIndex(spNorm)]))
         except: self.normFactor = 1.
 
-        self.parseInput()
-
-        self.nbrCores = nbrCores
         self.ndim = len(self.grid)
         self.boxSize = self.gridPosMax - self.gridPosMin
         self.meshSize = self.boxSize / self.grid
@@ -177,13 +177,9 @@ class Osiris:
 
         print("-------------------------------")
         print("path =", self.path)
-        print("allRuns =", self.allRuns)
-
-        print("-------------------------------")
         print("ndim =", self.ndim)
         print("grid =", self.grid)
-        print("gridPosMin =", self.gridPosMin)
-        print("gridPosMax =", self.gridPosMax)
+        print("gridPosMin =", self.gridPosMin,"|","gridPosMax =", self.gridPosMax)
         print("boxSize =",self.boxSize)
         print("meshSize =",self.meshSize)
         print("cellHyperVolume =", self.cellHyperVolume)
@@ -247,7 +243,7 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def getTimeAxis(self, species=None, ene=False, raw=False):
+    def getTimeAxis(self, species=None, ene=False, raw=False, track=False):
 
         #species time
         if species!=None:
@@ -394,14 +390,18 @@ class Osiris:
 
         #energy per field component
         if qty=="B":
-            ene = np.asarray([np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=2)[cond],
-                              np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=3)[cond],
-                              np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=4)[cond]]).T
+            ene_Bx = np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=2)[cond] / self.boxHyperVolume
+            ene_By = np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=3)[cond] / self.boxHyperVolume
+            ene_Bz = np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=4)[cond] / self.boxHyperVolume
+
+            return ene_Bx, ene_By, ene_Bz
 
         elif qty=="E":
-            ene = np.asarray([np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=5)[cond],
-                              np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=6)[cond],
-                              np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=7)[cond]]).T
+            ene_Ex = np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=5)[cond] / self.boxHyperVolume
+            ene_Ey = np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=6)[cond] / self.boxHyperVolume
+            ene_Ez = np.loadtxt(self.path+"/HIST/fld_ene",skiprows=2,usecols=7)[cond] / self.boxHyperVolume
+
+            return ene_Ex, ene_Ey, ene_Ez
 
         #kinetic energy
         elif qty=="kin":
@@ -410,9 +410,9 @@ class Osiris:
             if sIndex < 10: sIndex = "0" + str(sIndex)
             else:           sIndex = str(sIndex)
 
-            ene = np.loadtxt(self.path+"/HIST/par"+sIndex+"_ene",skiprows=2,usecols=3)[cond]
+            ene = np.loadtxt(self.path+"/HIST/par"+sIndex+"_ene",skiprows=2,usecols=3)[cond] / self.boxHyperVolume
 
-        return ene / self.boxHyperVolume
+            return ene
 
 
 
@@ -560,7 +560,7 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def getRaw(self, time, species, key, sl=slice(None), parallel=True):
+    def getRaw(self, time, species, key, parallel=True):
 
         #['SIMULATION', 'ene', 'p1', 'p2', 'p3', 'q', 'tag', 'x1', 'x2', 'x3']
 
@@ -577,7 +577,7 @@ class Osiris:
         if len(index)!=N: raise ValueError("Unknown time for '"+dataPath+"'")
 
         #create inputs
-        it = ((dataPath + p, key, sl) for p in np.take(sorted(os.listdir(dataPath)), index))
+        it = ((dataPath + p, key) for p in np.take(sorted(os.listdir(dataPath)), index))
 
         #multiple values read
         if N>1:
@@ -586,11 +586,11 @@ class Osiris:
                 G = pf.parallel(pf.readRawData, it, self.nbrCores)
             #sequential reading of data
             else:
-                G = np.asarray(tuple(pf.readRawData(i[0], key, sl) for i in it), dtype=object)
+                G = np.asarray(tuple(pf.readRawData(i[0], key) for i in it), dtype=object)
 
         #single value read
         else:
-            G = pf.readRawData(next(it)[0], key, sl)
+            G = pf.readRawData(next(it)[0], key)
 
         return G
 
@@ -663,9 +663,7 @@ class Osiris:
 
         #project vector 'v' in basis 'e' along direction 'comp'
         if comp==0:   #parallel to 'e'
-            baseX = ex
-            baseY = ey
-            baseZ = ez
+            baseX, baseY, baseZ = ex, ey, ez
 
         else: #e x unit vector I
             baseX, baseY, baseZ = self.crossProduct(ex, ey, ez, Ix, Iy, Iz)
@@ -676,36 +674,35 @@ class Osiris:
         return (vx*baseX + vy*baseY + vz*baseZ) / np.sqrt(baseX**2+baseY**2+baseZ**2)
 
 
-
     #--------------------------------------------------------------
-    def findCell(self,x1,x2,x3):
+    def findCell(self, pos):
 
         #finds cell indexes from macroparticle positions
 
         if self.ndim==1:
-            i = np.int_(x1 // self.meshSize[0])
+            i = np.int_(pos // self.meshSize[0])
 
             return i
 
         elif self.ndim==2:
-            i = np.int_(x1 // self.meshSize[0])
-            j = np.int_(x2 // self.meshSize[1])
+            i = np.int_(pos[0] // self.meshSize[0])
+            j = np.int_(pos[1] // self.meshSize[1])
 
             return i, j
 
         elif self.ndim==3:
-            i = np.int_(x1 // self.meshSize[0])
-            j = np.int_(x2 // self.meshSize[1])
-            k = np.int_(x3 // self.meshSize[2])
+            i = np.int_(pos[0] // self.meshSize[0])
+            j = np.int_(pos[1] // self.meshSize[1])
+            k = np.int_(pos[2] // self.meshSize[2])
 
             return i, j, k
 
 
     #--------------------------------------------------------------
-    def magCurv(self, x1, x2, x3,
-                      bx, by, bz, time):
+    def magCurv(self, pos, bx, by, bz, time):
 
         #calculate magnetic field curvature at macroparticle position
+        #need position as pos = x1; tuple(x1,x2); tuple(x1,x2,x3) depending on dimension [c/wpe]
         #need norm of magnetic field seen by the macroparticle 'b'
 
         #get gradient of magnetic field in the cell containing the macroparticle
@@ -716,7 +713,7 @@ class Osiris:
 
         if self.ndim==1:
             dx = self.meshSize
-            i = self.findCell(x1,x2,x3)   #contains index of cell for each macroparticle
+            i = self.findCell(pos)   #contains index of cell for each macroparticle
 
             #len(B[i]) = #parts, can be larger than len(B)
             #corresponds to B in cell with index i for each macroparticle
@@ -726,7 +723,7 @@ class Osiris:
 
         elif self.ndim==2:
             dx, dy = self.meshSize
-            i, j = self.findCell(x1,x2,x3)
+            i, j = self.findCell(pos)
 
             kappaX = ((Bx[i+1,j  ] - Bx[i,j])/dx*bx +
                       (Bx[i  ,j+1] - Bx[i,j])/dy*by)
@@ -739,7 +736,7 @@ class Osiris:
 
         elif self.ndim==3:
             dx, dy, dz = self.meshSize
-            i, j, k = self.findCell(x1,x2,x3)
+            i, j, k = self.findCell(pos)
 
             kappaX = ((Bx[i+1,j  ,k  ] - Bx[i,j,k])/dx*bx +
                       (Bx[i  ,j+1,k  ] - Bx[i,j,k])/dy*by +
@@ -756,7 +753,6 @@ class Osiris:
         norm2 = bx**2+by**2+bz**2
 
         return kappaX/norm2, kappaY/norm2, kappaZ/norm2
-
 
 
     #--------------------------------------------------------------

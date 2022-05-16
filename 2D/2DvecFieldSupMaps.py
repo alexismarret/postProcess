@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Mar 24 13:11:45 2022
+Created on Thu Mar 10 15:18:50 2022
 
 @author: alexis
 """
-
 
 #----------------------------------------------
 import osiris
@@ -23,22 +22,25 @@ params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 2,
         'lines.markersize' : 3, 'xtick.labelsize' : 9, 'ytick.labelsize' : 9,
         'font.size': 9,'legend.fontsize': 9, 'legend.handlelength' : 1.5,
         'legend.borderpad' : 0.1,'legend.labelspacing' : 0.1, 'axes.linewidth' : 1,
-         'text.usetex': True}
+        'figure.autolayout': True, 'text.usetex': True}
 plt.rcParams.update(params)
 # plt.close("all")
 
+
 #----------------------------------------------
-def plot2D(data,time,extent,ind,figPath):
+def plot2D(data,v1,v2,X,Y,time,extent,ind,figPath):
 
     fig, (sub1) = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
-    # fig.subplots_adjust(bottom=0.09)
+    # fig.subplots_adjust(bottom=0.28)
 
     im=sub1.imshow(data[0,...].T,
                    extent=extent,origin="lower",
                    aspect=1,
-                   cmap="bwr",
-                   vmin = -0.1, vmax = 0.1,
+                   cmap="jet",
+                   norm=LogNorm(vmin = 0.01, vmax = 0.1),
                    interpolation="None")
+
+    # vecField = sub1.quiver(X,Y,v1[0,...],v2[0,...],color="k")
 
     divider = make_axes_locatable(sub1)
     cax = divider.append_axes("right", size="5%", pad=0.1)
@@ -51,7 +53,7 @@ def plot2D(data,time,extent,ind,figPath):
     sub1.set_ylabel(r'$y\ [c/\omega_{pi}]$')
 
     sub1.text(1, 1.05,
-              r"$J\ [en_ec]$",
+              r"$n_i\ [(c/\omega_{pe})^{-3}]$",
               horizontalalignment='right',
               verticalalignment='bottom',
               transform=sub1.transAxes)
@@ -76,109 +78,50 @@ def plot2D(data,time,extent,ind,figPath):
 
         im.set_array(data[i,...].T)
 
+        # vecField.remove()
+        # vecField = sub1.quiver(X,Y,v1[i,...],v2[i,...],color="k",scale=8)
+
         plt.savefig(figPath+"/plot-{i}-time-{t}.png".format(i=i+ind,t=time[i]),dpi="figure")
 
     return
-
 
 #----------------------------------------------
 run  ="CS2DrmhrTrack"
 o = osiris.Osiris(run,spNorm="iL")
 
-sx = slice(None,None,1)
 st = slice(None,None,1)
-x     = o.getAxis("x")[sx]
-y     = o.getAxis("y")[sx]
-time = o.getTimeAxis("iL")[st]
+sx = slice(None,None,50)
+sy = slice(None,None,50)
+sl = (sx,sy)
+
+x    = o.getAxis("x")
+y    = o.getAxis("y")
+time = o.getTimeAxis()[st]
+
+X,Y = np.meshgrid(x[sx],y[sy])
+UiLx = o.getUfluid(time, "iL","x",sl=sl)
+UiLy = o.getUfluid(time, "iL","y",sl=sl)
 
 #----------------------------------------------
-# jTotX = (o.getCurrent(time, "eL", "x") +
-#           o.getCurrent(time, "eR", "x") +
-#           o.getCurrent(time, "iL", "x") +
-#           o.getCurrent(time, "iR", "x"))
-
-jTotX2 = o.getTotCurrent(time, "x")
-
-# v_el=o.getVclassical(time, "eL", "x")
-# v_er=o.getVclassical(time, "eR", "x")
-# v_il=o.getVclassical(time, "iL", "x")
-# v_ir=o.getVclassical(time, "iR", "x")
-
-# u_el=o.getUfluid(time, "eL", "x")
-# u_er=o.getUfluid(time, "eR", "x")
-# u_il=o.getUfluid(time, "iL", "x")
-# u_ir=o.getUfluid(time, "iR", "x")
-
-# jTotX3 = (o.getCharge(time, "eL") * v_el/np.sqrt(1-v_el**2) +
-#           o.getCharge(time, "eR") * v_er/np.sqrt(1-v_er**2) +
-#           o.getCharge(time, "iL") * v_il/np.sqrt(1-v_il**2) +
-#           o.getCharge(time, "iR") * v_ir/np.sqrt(1-v_ir**2))
-
-# jTotX4 = (o.getCharge(time, "eL") * u_el +
-#           o.getCharge(time, "eR") * u_er +
-#           o.getCharge(time, "iL") * u_il +
-#           o.getCharge(time, "iR") * u_ir)
+eps=1e-7
+# rI = o.getCharge(time, "iL") / (o.getCharge(time, "iR")+eps)
+# niL = o.getCharge(time, "iL")+eps
+TiL  = o.getUth(time, "iL", "x")**2*o.rqm[o.sIndex("iL")] + eps
 
 #----------------------------------------------
 stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
 extent=(min(x),max(x),min(y),max(y))
 
-
 #----------------------------------------------
-path = o.path+"/plots/jTotX"
+path = o.path+"/plots/TiL"
 o.setup_dir(path)
 
-it = ((jTotX2  [s[0]:s[1]],
-       time        [s[0]:s[1]],
-       extent, s[0], path) for s in stages)
+it = ((TiL    [s[0]:s[1]],
+       UiLx  [s[0]:s[1]],
+       UiLy  [s[0]:s[1]],
+       X,Y,
+        time[s[0]:s[1]],
+        extent, s[0], path) for s in stages)
 
 pf.parallel(plot2D, it, o.nbrCores, noInteract=True)
 
-"""
-#----------------------------------------------
-path = o.path+"/plots/jTotX2"
-o.setup_dir(path)
-
-it = ((jTotX2  [s[0]:s[1]],
-       time        [s[0]:s[1]],
-       extent, s[0], path) for s in stages)
-
-pf.parallel(plot2D, it, o.nbrCores, plot=True)
-
-#----------------------------------------------
-path = o.path+"/plots/jTotX3"
-o.setup_dir(path)
-
-it = ((jTotX3  [s[0]:s[1]],
-       time        [s[0]:s[1]],
-       extent, s[0], path) for s in stages)
-
-pf.parallel(plot2D, it, o.nbrCores, plot=True)
-
-
-#----------------------------------------------
-path = o.path+"/plots/jTotX4"
-o.setup_dir(path)
-
-it = ((jTotX4  [s[0]:s[1]],
-       time        [s[0]:s[1]],
-       extent, s[0], path) for s in stages)
-
-pf.parallel(plot2D, it, o.nbrCores, plot=True)
-
-
-
-mask = o.locFilament(time)
-
-#----------------------------------------------
-path = o.path+"/plots/jTotX_mask"
-o.setup_dir(path)
-
-jTotX_masked = np.ma.masked_array(jTotX,mask= mask,copy=False)
-
-it = ((jTotX_masked  [s[0]:s[1]],
-       time        [s[0]:s[1]],
-       extent, s[0], path) for s in stages)
-
-pf.parallel(plot2D, it, o.nbrCores, plot=True)
-"""

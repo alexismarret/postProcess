@@ -21,17 +21,17 @@ plt.rcParams.update(params)
 # plt.close("all")
 
 #----------------------------------------------
-run  ="CS2Drmhr"
-o = osiris.Osiris(run,spNorm="eL")
+run  ="CS2DrmhrTrack"
+o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
-st = slice(None,None,1)
+st = slice(None,None,4)
 x    = o.getAxis("x")[sx]
 y    = o.getAxis("y")[sx]
-time = o.getTimeAxis("eL")[st]
+time = o.getTimeAxis()[st]
 
 #----------------------------------------------
-def cov(a,b):
+def cor(a,b):
 
     #naive implementation, might have issue because of machine precision
     # c = np.mean((a - np.mean(a,axis=(1,2))[...,None,None]) *
@@ -51,17 +51,21 @@ def cov(a,b):
     return c
 
 #----------------------------------------------
-cov_iL = cov(o.getUth(time,"iL","x")**2*o.rqm[o.sIndex("iL")],
+cor_iL = cor(o.getUth(time,"iL","x")**2*o.rqm[o.sIndex("iL")],
               o.getCharge(time, "iL"))
 
-cov_iR = cov(o.getUth(time,"iR","x")**2*o.rqm[o.sIndex("iR")],
+cor_iR = cor(o.getUth(time,"iR","x")**2*o.rqm[o.sIndex("iR")],
               o.getCharge(time,"iR"))
 
-cov_eL = cov(o.getUth(time,"eL","x")**2,
+cor_eL = cor(o.getUth(time,"eL","x")**2,
               o.getCharge(time,"eL") *-1)
 
-cov_eR = cov(o.getUth(time,"eR","x")**2,
+cor_eR = cor(o.getUth(time,"eR","x")**2,
               o.getCharge(time,"eR") *-1)
+
+eps = 1e-6   #avoid /0
+ratio = np.mean(np.abs(o.getUfluid(time, "iL","y") /
+                       (o.getUfluid(time, "iL","x")+eps)),axis=(1,2))
 # Ex =  np.abs(o.getE(time,"y"))
 # cov_iL = cov(o.getUth(time,"iL","x")**2*o.getRatioQM("iL"),
 #               Ex)
@@ -78,15 +82,19 @@ cov_eR = cov(o.getUth(time,"eR","x")**2,
 #----------------------------------------------
 fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
 
-sub1.plot(time,cov_iL,color="r",label="iL")
-sub1.plot(time,cov_iR,color="b",label="iR")
+sub1.plot(time,cor_iL,color="r",label="iL")
+sub1.plot(time,cor_iR,color="b",label="iR")
 
-sub1.plot(time,cov_eL,color="g",label="eL")
-sub1.plot(time,cov_eR,color="orange",label="eR")
+sub1.plot(time,cor_eL,color="g",label="eL")
+sub1.plot(time,cor_eR,color="orange",label="eR")
+
+sub1.plot(time,ratio,color="k",label="uy/ux")
 
 sub1.set_xlabel(r"$t\ [\omega_{pi}^{-1}]$")
-sub1.set_ylabel(r"$Cov(T(x,y),n(x,y))$")
+sub1.set_ylabel(r"$Cor(T(x,y),n(x,y))$")
 
 # sub1.set_ylim(-0.0015,0.0015)
 sub1.axhline(0,color="gray",linestyle="--",linewidth=0.7)
 sub1.legend(frameon=False)
+
+plt.savefig(o.path+"/plots/correlation.png",dpi="figure")

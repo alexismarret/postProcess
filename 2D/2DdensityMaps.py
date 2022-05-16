@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Thu Mar 10 15:18:50 2022
+Created on Fri May 13 19:00:25 2022
 
 @author: alexis
 """
+
 
 #----------------------------------------------
 import osiris
@@ -15,17 +16,16 @@ from matplotlib.artist import Artist
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.colors import LogNorm
 
-import parallel_functions as pf
+import parallelFunctions as pf
 
 #----------------------------------------------
 params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 2,
         'lines.markersize' : 3, 'xtick.labelsize' : 9, 'ytick.labelsize' : 9,
         'font.size': 9,'legend.fontsize': 9, 'legend.handlelength' : 1.5,
         'legend.borderpad' : 0.1,'legend.labelspacing' : 0.1, 'axes.linewidth' : 1,
-        'figure.autolayout': True, 'text.usetex': True}
+        'text.usetex': True}
 plt.rcParams.update(params)
 # plt.close("all")
-
 
 #----------------------------------------------
 def plot2D(data,time,extent,ind,figPath):
@@ -35,9 +35,9 @@ def plot2D(data,time,extent,ind,figPath):
 
     im=sub1.imshow(data[0,...].T,
                    extent=extent,origin="lower",
-                   aspect=1,
+                    aspect=1,
                    cmap="bwr",
-                   norm=LogNorm(vmin = 1e-1, vmax = 1e1),
+                    norm=LogNorm(vmin = 0.01, vmax = 1),
                    interpolation="None")
 
     divider = make_axes_locatable(sub1)
@@ -51,7 +51,7 @@ def plot2D(data,time,extent,ind,figPath):
     sub1.set_ylabel(r'$y\ [c/\omega_{pi}]$')
 
     sub1.text(1, 1.05,
-              r"$n_i\ [(c/\omega_{pe})^{-3}]$",
+              r"$U_{eL}\ [c]$",
               horizontalalignment='right',
               verticalalignment='bottom',
               transform=sub1.transAxes)
@@ -81,29 +81,33 @@ def plot2D(data,time,extent,ind,figPath):
     return
 
 #----------------------------------------------
-run  ="counterStreamFast"
+run  ="CS2DrmhrTrack"
 o = osiris.Osiris(run,spNorm="iL")
 
-sx = slice(None,None,1)
+sx = slice(0,None,1)
+sy = slice(0,None,1)
 st = slice(None,None,1)
+sl=(sx,sy)
 x    = o.getAxis("x")[sx]
-y    = o.getAxis("y")[sx]
-time = o.getTimeAxis("eL")[st]
+y    = o.getAxis("y")[sy]
+time = o.getTimeAxis()[st]
 
 #----------------------------------------------
-rI = o.getCharge(time, "iL") / o.getCharge(time, "iR")
+eps = 1e-6   #avoid /0
+ratio = o.getCharge(time, "iL",sl=sl) / o.getCharge(time, "iR",sl=sl)+eps
+
 
 #----------------------------------------------
 stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
 extent=(min(x),max(x),min(y),max(y))
 
 #----------------------------------------------
-path = o.path+"/plots/rI"
+path = o.path+"/plots/rNi"
 o.setup_dir(path)
 
-it = ((rI    [s[0]:s[1]],
+it = ((ratio [s[0]:s[1]],
         time[s[0]:s[1]],
         extent, s[0], path) for s in stages)
 
-pf.parallel(plot2D, it, o.nbrCores, plot=True)
+pf.parallel(plot2D, it, o.nbrCores, noInteract=True)
 

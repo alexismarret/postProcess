@@ -15,7 +15,7 @@ from matplotlib.artist import Artist
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.colors import LogNorm
 
-import parallel_functions as pf
+import parallelFunctions as pf
 
 #----------------------------------------------
 params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 2,
@@ -35,7 +35,7 @@ def plot2D(data,time,extent,ind,figPath):
     im=sub1.imshow(data[0,...].T,
                    extent=extent,origin="lower",
                    aspect=1,
-                   cmap="hot",norm=LogNorm(vmin = 1e-3, vmax = 1e-1),
+                   cmap="jet",norm=LogNorm(vmin = 1e-4, vmax = 1e-1),
                    interpolation="None")
 
     divider = make_axes_locatable(sub1)
@@ -80,19 +80,21 @@ def plot2D(data,time,extent,ind,figPath):
 
 
 #----------------------------------------------
-run  ="CS2Drmhr"
-o = osiris.Osiris(run,spNorm="iL")
+run  ="CS2DrmhrTrack"
+o = osiris.Osiris(run,spNorm="eL")
 
 sx = slice(None,None,1)
-st = slice(None,None,2)
+st = slice(None,None,1)
 x     = o.getAxis("x")[sx]
 y     = o.getAxis("y")[sx]
-time = o.getTimeAxis("iL")[st]
+time = o.getTimeAxis()[st]
 
-mu = o.getRatioQM("iL")
+mu = o.rqm[o.sIndex("iL")]
+
 
 #----------------------------------------------
-# rTiX= (o.getUth(time, "iL", "x") / (o.getUth(time, "iR", "x")))**2
+eps=1e-5
+# rTiX= (o.getUth(time, "iL", "x") / (o.getUth(time, "iR", "x")+eps))**2
 # rY = (o.getUth(time, "eL", "y") / (o.getUth(time, "iL", "y") * mu))**2
 # rZ = (o.getUth(time, "eL", "z") / (o.getUth(time, "iL", "z") * mu))**2
 
@@ -118,7 +120,7 @@ it = ((TiX  [s[0]:s[1]],
         extent, s[0], path) for s in stages)
 
 
-pf.parallel(plot2D, it, o.nbrCores, plot=True)
+pf.parallel(plot2D, it, o.nbrCores, noInteract=True)
 
 
 

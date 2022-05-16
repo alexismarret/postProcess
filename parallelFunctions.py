@@ -23,7 +23,7 @@ import time as ti
 def parallel(function, it, nbrCores, noInteract=False):
     #evaluates in parallel all the results, not lazy
 
-    #disable interactive window for plots
+    #disable interactive window for plots, also kills existing figures
     if noInteract: plt.switch_backend('Agg')
 
     #generate pool of workers
@@ -69,11 +69,11 @@ def readData(dataPath, sl, av):
 
 
 #--------------------------------------------------------------
-def readRawData(dataPath, key, sl):
+def readRawData(dataPath, key):
 
     with h5py.File(dataPath,"r") as f:
 
-        return f[key][sl]
+        return f[key][()]
 
 
 

@@ -27,7 +27,7 @@ plt.rcParams.update(params)
 # plt.close("all")
 
 #----------------------------------------------
-run  ="CS3D"
+run  ="CS3Dtrack"
 o = osiris.Osiris(run,spNorm="iL")
 
 x    = o.getAxis("x")
