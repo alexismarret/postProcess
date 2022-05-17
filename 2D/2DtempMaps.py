@@ -35,15 +35,15 @@ def plot2D(data,time,extent,ind,figPath):
     im=sub1.imshow(data[0,...].T,
                    extent=extent,origin="lower",
                    aspect=1,
-                   cmap="jet",norm=LogNorm(vmin = 1e-4, vmax = 1e-1),
+                   cmap="jet",norm=LogNorm(vmin = 1e-3, vmax = 1),
                    interpolation="None")
 
     divider = make_axes_locatable(sub1)
     cax = divider.append_axes("right", size="5%", pad=0.1)
     fig.colorbar(im, cax=cax)
 
-    sub1.locator_params(nbins=5,axis='y')
-    sub1.locator_params(nbins=5,axis='x')
+    sub1.locator_params(nbins=20,axis='y')
+    sub1.locator_params(nbins=20,axis='x')
 
     sub1.set_xlabel(r'$x\ [c/\omega_{pi}]$')
     sub1.set_ylabel(r'$y\ [c/\omega_{pi}]$')
@@ -81,7 +81,7 @@ def plot2D(data,time,extent,ind,figPath):
 
 #----------------------------------------------
 run  ="CS2DrmhrTrack"
-o = osiris.Osiris(run,spNorm="eL")
+o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
 st = slice(None,None,1)

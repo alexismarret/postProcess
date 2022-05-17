@@ -36,7 +36,7 @@ def plot2D(data,time,extent,ind,figPath):
     im=sub1.imshow(data[0,...].T,
                    extent=extent,origin="lower",
                     aspect=1,
-                   cmap="bwr",
+                   cmap="jet",
                     norm=LogNorm(vmin = 0.01, vmax = 1),
                    interpolation="None")
 
@@ -44,8 +44,8 @@ def plot2D(data,time,extent,ind,figPath):
     cax = divider.append_axes("right", size="5%", pad=0.1)
     fig.colorbar(im, cax=cax)
 
-    sub1.locator_params(nbins=5,axis='y')
-    sub1.locator_params(nbins=5,axis='x')
+    sub1.locator_params(nbins=20,axis='y')
+    sub1.locator_params(nbins=20,axis='x')
 
     sub1.set_xlabel(r'$x\ [c/\omega_{pi}]$')
     sub1.set_ylabel(r'$y\ [c/\omega_{pi}]$')
@@ -92,6 +92,27 @@ x    = o.getAxis("x")[sx]
 y    = o.getAxis("y")[sy]
 time = o.getTimeAxis()[st]
 
+
+#----------------------------------------------
+eps = 1e-7   #avoid 0
+niL = o.getCharge(time, "iL",sl=sl) +eps
+
+
+#----------------------------------------------
+stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
+extent=(min(x),max(x),min(y),max(y))
+
+#----------------------------------------------
+path = o.path+"/plots/niL"
+o.setup_dir(path)
+
+it = ((niL [s[0]:s[1]],
+        time[s[0]:s[1]],
+        extent, s[0], path) for s in stages)
+
+pf.parallel(plot2D, it, o.nbrCores, noInteract=True)
+
+"""
 #----------------------------------------------
 eps = 1e-6   #avoid /0
 ratio = o.getCharge(time, "iL",sl=sl) / o.getCharge(time, "iR",sl=sl)+eps
@@ -111,3 +132,4 @@ it = ((ratio [s[0]:s[1]],
 
 pf.parallel(plot2D, it, o.nbrCores, noInteract=True)
 
+"""

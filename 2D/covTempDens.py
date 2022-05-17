@@ -25,7 +25,7 @@ run  ="CS2DrmhrTrack"
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
-st = slice(None,None,4)
+st = slice(None,None,1)
 x    = o.getAxis("x")[sx]
 y    = o.getAxis("y")[sx]
 time = o.getTimeAxis()[st]
@@ -66,19 +66,22 @@ cor_eR = cor(o.getUth(time,"eR","x")**2,
 eps = 1e-6   #avoid /0
 ratio = np.mean(np.abs(o.getUfluid(time, "iL","y") /
                        (o.getUfluid(time, "iL","x")+eps)),axis=(1,2))
-# Ex =  np.abs(o.getE(time,"y"))
-# cov_iL = cov(o.getUth(time,"iL","x")**2*o.getRatioQM("iL"),
-#               Ex)
 
-# cov_iR = cov(o.getUth(time,"iR","x")**2*o.getRatioQM("iR"),
-#               Ex)
 
-# cov_eL = cov(o.getUth(time,"eL","x")**2,
-#               Ex)
+"""
+Ex =  np.abs(o.getE(time,"y"))
+cov_iL = cov(o.getUth(time,"iL","x")**2*o.getRatioQM("iL"),
+              Ex)
 
-# cov_eR = cov(o.getUth(time,"eR","x")**2,
-#               Ex)
+cov_iR = cov(o.getUth(time,"iR","x")**2*o.getRatioQM("iR"),
+              Ex)
 
+cov_eL = cov(o.getUth(time,"eL","x")**2,
+              Ex)
+
+cov_eR = cov(o.getUth(time,"eR","x")**2,
+              Ex)
+"""
 #----------------------------------------------
 fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
 
