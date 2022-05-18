@@ -22,7 +22,7 @@ plt.rcParams.update(params)
 # plt.close("all")
 
 #----------------------------------------------
-run  ="CS2Drmhr"
+run  ="CS2DrmhrTrack"
 o = osiris.Osiris(run,spNorm="iL")
 
 st = slice(None,None,1)
@@ -63,10 +63,9 @@ TeLy = np.mean(o.getUth(time, "eL", "y")**2,axis=(1,2))
 #                 o.getE(time,"y")**2+
 #                 o.getE(time,"z")**2,axis=(1,2))/2.
 
-E = o.getEnergyIntegr(time, "E")
-Ex,Ey = E[:,0],E[:,1]
-B = np.sum(o.getEnergyIntegr(time, "B"),axis=-1)
-
+Ex,Ey,Ez = o.getEnergyIntegr(time, "E")
+Bx,By,Bz = o.getEnergyIntegr(time, "B")
+B = Bx+By+Bz
 
 
 # GRavwB = np.gradient(normB)

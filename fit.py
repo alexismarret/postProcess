@@ -22,9 +22,9 @@ def fitExponential (X, Y, pinit=[0,0]) :
     amp=out[0]
     index=out[1]
 
-    ss_err=(infodict['fvec']**2).sum()
-    ss_tot=((Y-Y.mean())**2).sum()
-    rsquared = ss_err/ss_tot
+    # ss_err=(infodict['fvec']**2).sum()
+    # ss_tot=((Y-Y.mean())**2).sum()
+    # rsquared = ss_err/ss_tot
 
 
-    return amp, index, rsquared
+    return amp, index

@@ -22,7 +22,7 @@ class Osiris:
         self.allRuns = np.sort(os.listdir(os.environ.get("OSIRIS_RUN_DIR")))
         self.nbrCores = nbrCores
 
-        self.parseInput()
+        self.parseInput(run)
 
         try:    self.normFactor = np.sqrt(np.abs(self.rqm[self.sIndex(spNorm)]))
         except: self.normFactor = 1.
@@ -37,13 +37,13 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def parseInput(self):
+    def parseInput(self, run):
 
         #open input file
         try:
-            input_file = glob.glob(self.path+"/*.in")[0]
+            input_file = glob.glob(self.path+"/"+run+".in")[0]
         except IndexError:
-            raise ValueError("Cannot find input file in '"+self.path+"'")
+            raise ValueError("Cannot find input file "+run+".in"+" in '"+self.path+"'")
 
         with open(input_file) as f: inputs = f.readlines()
 
@@ -628,24 +628,6 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def locFilament(self, time, polarity, fac=2):
-
-        j = (self.getCurrent(time, "eL", "x")+
-             self.getCurrent(time, "eR", "x")+
-             self.getCurrent(time, "iL", "x")+
-             self.getCurrent(time, "iR", "x"))
-
-        #filament defined as j > std(j) initially (except first time step numerical)
-        K = polarity * np.std(j[1]) * fac
-
-        #yield true when value is NOT in filament
-        if    polarity== 1: mask = np.ma.getmask(np.ma.masked_where(j<K,j,copy=False))
-        elif  polarity==-1: mask = np.ma.getmask(np.ma.masked_where(j>K,j,copy=False))
-
-        return mask
-
-
-    #--------------------------------------------------------------
     def crossProduct(self, Ax, Ay, Az, Bx, By, Bz):
 
         cx = Ay*Bz - Az*By
@@ -678,22 +660,33 @@ class Osiris:
     def findCell(self, pos):
 
         #finds cell indexes from macroparticle positions
-
         if self.ndim==1:
+
             i = np.int_(pos // self.meshSize[0])
+            #need to check that index different than number of cells
+            i[i==self.grid[0]] = self.grid[0]-1
 
             return i
 
         elif self.ndim==2:
+
             i = np.int_(pos[0] // self.meshSize[0])
             j = np.int_(pos[1] // self.meshSize[1])
+
+            i[i==self.grid[0]] = self.grid[0]-1
+            j[j==self.grid[1]] = self.grid[1]-1
 
             return i, j
 
         elif self.ndim==3:
+
             i = np.int_(pos[0] // self.meshSize[0])
             j = np.int_(pos[1] // self.meshSize[1])
             k = np.int_(pos[2] // self.meshSize[2])
+
+            i[i==self.grid[0]] = self.grid[0]-1
+            j[j==self.grid[1]] = self.grid[1]-1
+            k[k==self.grid[2]] = self.grid[2]-1
 
             return i, j, k
 

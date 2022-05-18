@@ -36,8 +36,8 @@ def plot2D(data,time,extent,ind,figPath):
     im=sub1.imshow(data[0,...].T,
                    extent=extent,origin="lower",
                     aspect=1,
-                   cmap="jet",
-                    norm=LogNorm(vmin = 0.01, vmax = 1),
+                   cmap="bwr",
+                    norm=LogNorm(vmin = 0.1, vmax = 10),
                    interpolation="None")
 
     divider = make_axes_locatable(sub1)
@@ -51,7 +51,7 @@ def plot2D(data,time,extent,ind,figPath):
     sub1.set_ylabel(r'$y\ [c/\omega_{pi}]$')
 
     sub1.text(1, 1.05,
-              r"$U_{eL}\ [c]$",
+              r"$n_{iL}/n_0$",
               horizontalalignment='right',
               verticalalignment='bottom',
               transform=sub1.transAxes)
@@ -92,10 +92,11 @@ x    = o.getAxis("x")[sx]
 y    = o.getAxis("y")[sy]
 time = o.getTimeAxis()[st]
 
+n0 = o.n0[o.sIndex("iL")]
 
 #----------------------------------------------
 eps = 1e-7   #avoid 0
-niL = o.getCharge(time, "iL",sl=sl) +eps
+niL = o.getCharge(time, "iL",sl=sl) / n0
 
 
 #----------------------------------------------
