@@ -24,7 +24,7 @@ plt.close("all")
 
 #----------------------------------------------
 run  ="CS3Dtrack"
-spNorm = "iL"
+spNorm = "eL"
 o = osiris.Osiris(run,spNorm=spNorm)
 
 species ="eL"
@@ -142,28 +142,28 @@ if mult:
         # sub2.plot(t[i], intWork1[i],color="r")
         # sub3.plot(t[i], intWork2[i],color="g")
 
-    # sub1.plot(t[imax],ene[imax],color="r",
-    #           label=r"$\max(\mathcal{E}_{kin})$")
-    # sub1.plot(t[imax],intWork1[imax],color="r",linestyle="dashed",
-    #           label=r"$\max(\mathrm{q}\int\bf{v}\cdot\bf{E}_x \mathrm{dt})$")
-    # sub1.plot(t[imax],intWork2[imax],color="r",linestyle="dotted",
-    #           label=r"$\max(\mathrm{q}\int\bf{v}\cdot\bf{E}_y \mathrm{dt})$")
-    # sub1.plot(t[imax],intWork3[imax],color="r",linestyle="dashdot",
-    #           label=r"$\max(\mathrm{q}\int\bf{v}\cdot\bf{E}_z \mathrm{dt})$")
-
-
-    sub1.plot(t[0],np.mean(ene,axis=0),color="b",
-              label=r"$\langle\mathcal{E}_{kin}\rangle$")
-
-    sub1.plot(t[0],np.mean(intWork1,axis=0),color="b",linestyle="dashed",
-              label=r"$\langle \mathrm{q}\int\bf{v}\cdot\bf{E}_x \mathrm{dt}\rangle$")
-    sub1.plot(t[0],np.mean(intWork2,axis=0),color="b",linestyle="dotted",
-              label=r"$\langle \mathrm{q}\int\bf{v}\cdot\bf{E}_y \mathrm{dt}\rangle$")
-    sub1.plot(t[0],np.mean(intWork3,axis=0),color="b",linestyle="dashdot",
-              label=r"$\langle \mathrm{q}\int\bf{v}\cdot\bf{E}_z \mathrm{dt}\rangle$")
-
-    sub1.plot(t[0],np.mean(intWork,axis=0),color="r",linestyle="dashed",
+    sub1.plot(t[imax],ene[imax],color="r",
+              label=r"$\max(\mathcal{E}_{kin})$")
+    sub1.plot(t[imax],intWork1[imax],color="r",linestyle="dashed",
+              label=r"$\max(\mathrm{q}\int\bf{v}\cdot\bf{E}_x \mathrm{dt})$")
+    sub1.plot(t[imax],intWork2[imax],color="r",linestyle="dotted",
+              label=r"$\max(\mathrm{q}\int\bf{v}\cdot\bf{E}_y \mathrm{dt})$")
+    sub1.plot(t[imax],intWork3[imax],color="r",linestyle="dashdot",
+              label=r"$\max(\mathrm{q}\int\bf{v}\cdot\bf{E}_z \mathrm{dt})$")
+    sub1.plot(t[imax],intWork[imax],color="b",linestyle="-",
               label=r"$\langle \mathrm{q}\int\bf{v}\cdot\bf{E} \mathrm{dt}\rangle$")
+
+    # sub1.plot(t[0],np.mean(ene,axis=0),color="b",
+    #           label=r"$\langle\mathcal{E}_{kin}\rangle$")
+
+    # sub1.plot(t[0],np.mean(intWork1,axis=0),color="b",linestyle="dashed",
+    #           label=r"$\langle \mathrm{q}\int\bf{v}\cdot\bf{E}_x \mathrm{dt}\rangle$")
+    # sub1.plot(t[0],np.mean(intWork2,axis=0),color="b",linestyle="dotted",
+    #           label=r"$\langle \mathrm{q}\int\bf{v}\cdot\bf{E}_y \mathrm{dt}\rangle$")
+    # sub1.plot(t[0],np.mean(intWork3,axis=0),color="b",linestyle="dashdot",
+    #           label=r"$\langle \mathrm{q}\int\bf{v}\cdot\bf{E}_z \mathrm{dt}\rangle$")
+
+
 
     sub1.legend(frameon=False,loc="upper right")
 

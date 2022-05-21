@@ -34,14 +34,14 @@ species ="iL"
 #----------------------------------------------
 #index of macroparticle
 sPart = slice(None,None,1)
-sTime = slice(None,None,20)
+sTime = slice(None,None,1)
 sl = (sPart,sTime)
 
 curveDrift = False
 maxwellian = False
-checkEnergy = False
-mult = False
-position = True
+checkEnergy = True
+mult = True
+position = False
 
 #plot parameters
 show = True
@@ -76,11 +76,13 @@ p3/=lorentz
 
 work1 = pCharge * e1*p1
 work2 = pCharge * e2*p2
-work = work1+work2
+work3 = pCharge * e2*p2
+work = work1+work2+work3
 
 intWork1 = np.cumsum(work1 *dt,axis=-1)
 intWork2 = np.cumsum(work2 *dt,axis=-1)
-intWork  = intWork1+intWork2
+intWork3 = np.cumsum(work3 *dt,axis=-1)
+intWork  = intWork1+intWork2+intWork3
 
 imax = np.where(ene[:,-1]==np.max(ene[:,-1]))[0][0]  #index of most energetic particle
 #%%
@@ -94,13 +96,13 @@ if checkEnergy:
 
     fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
 
-    d_ene_dt = np.gradient(ene[0],dt)
+    d_ene_dt = np.gradient(ene[imax],dt)
     # d_ene_dt2 = (ene[1:]-ene[:-1])/dt
 
     sub1.axhline(0,color="gray",linestyle="--",linewidth=0.7)
-    sub1.plot(t[0],d_ene_dt,color="r",label=r"$d_t\ ene$")
+    sub1.plot(t[imax],d_ene_dt,color="r",label=r"$d_t\ ene$")
     # sub1.plot(t[1:],d_ene_dt2,color="orange",label=r"$d_t\ ene$",linestyle="--")
-    sub1.plot(t[0],work[0],color="b",label=r"$W$")
+    sub1.plot(t[imax],work[imax],color="b",label=r"$W$")
 
     sub1.legend(frameon=False)
 
@@ -154,6 +156,8 @@ if mult:
               label=r"$\max(\mathcal{E}_{kin})$")
     sub1.plot(t[0],np.mean(ene,axis=0),color="b",
               label=r"$\langle\mathcal{E}_{kin}\rangle$")
+    sub1.plot(t[imax],intWork[imax]+ene[imax,0],color="g",linestyle="--",
+              label=r"$max(\mathrm{q}\int\bf{v}\cdot\bf{E} \mathrm{dt}$)")
 
     sub2.axhline(0,color="gray",linestyle="--",linewidth=0.7)
     sub2.plot(t[imax],intWork1[imax],color="r",linestyle="dashed",
@@ -165,6 +169,9 @@ if mult:
               label=r"$\langle \mathrm{q}\int\bf{v}\cdot\bf{E}_x \mathrm{dt}\rangle$")
     sub2.plot(t[0],np.mean(intWork2,axis=0),color="b",linestyle="dotted",
               label=r"$\langle \mathrm{q}\int\bf{v}\cdot\bf{E}_y \mathrm{dt}\rangle$")
+
+    sub2.plot(t[0],np.mean(intWork,axis=0),color="g",linestyle="-",
+              label=r"$\langle \mathrm{q}\int\bf{v}\cdot\bf{E} \mathrm{dt}\rangle$")
 
     sub1.legend(frameon=False)
     sub2.legend(frameon=False)

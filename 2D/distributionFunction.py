@@ -48,7 +48,7 @@ fitFactor = 1
 mf = 100000  #number of iterations max for fit
 stdf = 1      #filter standard deviation
 
-show=False       #draw figures of fit
+show=True       #draw figures of fit
 helpPos=False      #figure helper for region to consider
 do_filter=False    #filter histogram
 
@@ -105,12 +105,83 @@ if show:
 
 #----------------------------------------------
 #gaussian funtion for fit
-def gaussian(X, amp, index, drift):
-    #index == m/kBT
-    gauss = amp*np.exp(-0.5*index*(X-drift)**2)
+def maxwellian(X, n, vth, vDrift):
+
+    #vth == sqrt(kBT/m)
+    gauss = n/(np.sqrt(2*np.pi)*vth) * np.exp(-0.5*((X-vDrift)/vth)**2)
 
     return gauss
 
+#----------------------------------------------
+def fitDistrib(ly, yStep, gj, p):
+
+    nbins = 100
+    mf = 10000
+
+    rgeY = range(0,ly-yStep,yStep)
+    vth = np.zeros(len(rgeY))
+
+    for i,r in enumerate(rgeY):
+
+        #macroparticles in row or group of row
+        idx = np.nonzero((gj >= r) & (gj < r+yStep))[0]     #slowest operation
+
+
+        #----------------------------------------------
+        #generate histogram
+        h, b = np.histogram(p[idx],bins=nbins)
+
+
+        vth[i] = curve_fit(maxwellian, b[:-1], h, p0=[(b[1]- b[0])*np.max(h),
+                                                       b[-1]-b[0],
+                                                       vInit],
+                                                        maxfev=mf)[0][0]
+
+        # #----------------------------------------------
+        # n, vth, vDrift = curve_fit(maxwellian, b[:-1], h, p0=[(b[1]- b[0])*np.max(h),
+        #                                                        b[-1]-b[0],
+        #                                                        vInit],
+        #                                                   maxfev=mf)[0]
+        # b = b[:-1]
+        # fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
+        # sub1.plot(b,h,color="r")
+
+        # maxw = n/(np.sqrt(2*np.pi)*vth) * np.exp(-0.5*((b-vDrift)/vth)**2)
+
+        # sub1.plot(b,maxw,color="k")
+
+
+        # db = b[-1]-b[0]
+        # no = np.max(h*db)
+        # vstd = db/10
+
+        # print(no,vstd,vDrift)
+        # print(n, vth, vDrift)
+
+        # test = no/(np.sqrt(2*np.pi)*vstd) * np.exp(-0.5*((b-vInit)/vstd)**2)
+        # sub1.plot(b,test,color="b")
+
+    return vth
+
+#----------------------------------------------
+#https://www.geeksforgeeks.org/find-first-and-last-positions-of-an-element-in-a-sorted-array/
+# if x is present in arr[] then
+# returns the index of LAST occurrence
+# of x in arr[0..n-1]
+def last(arr, low, high, x, n) :
+    if (high >= low) :
+        mid = low + (high - low) // 2
+        if (( mid == n - 1 or x < arr[mid + 1]) and arr[mid] == x) :
+            return mid
+        elif (x < arr[mid]) :
+            return last(arr, low, (mid - 1), x, n)
+        else :
+            return last(arr, (mid + 1), high, x, n)
+
+    return
+
+
+#----------------------------------------------
 T  = np.zeros(len(time))
 TA = np.zeros(len(time))
 TN  = np.zeros(len(time))
@@ -125,12 +196,12 @@ for i in range(len(time)):
     #----------------------------------------------
     #get macroparticles data, skip if none
     x1 = o.getRaw(time[i], species, "x1")
-    try: len(x1)
+    try: N = len(x1)
     except TypeError: continue
     x2 = o.getRaw(time[i], species, "x2")
 
-    #index of macroparticles cell
-    gi, gj = o.findCell((x1,x2))
+    #sort macroparticles along x position
+    argsort = np.argsort(x1)
 
     p1 = o.getRaw(time[i], species, "p1")
     p2 = o.getRaw(time[i], species, "p2")
@@ -138,6 +209,10 @@ for i in range(len(time)):
     lorentz = np.sqrt(1+p1**2+p2**2+p3**2)
 
     p1/=lorentz
+    p1 = p1[argsort]
+
+    #index of macroparticles cell, sorted along x
+    gi, gj = o.findCell((x1[argsort],x2[argsort]))
 
     #get temperature from whole macroparticles distribution
     # Temp = o.getUth(time[i], species, "x")**2 *o.rqm[o.sIndex(species)]
@@ -156,7 +231,7 @@ for i in range(len(time)):
         mask = np.ma.getmask(np.ma.masked_where(ni > o.n0[o.sIndex(species)],
                                                 ni, copy=False))
         try: cond = mask[gi,gj]
-        except: cond = np.ones(x1.shape,dtype=bool)
+        except: cond = np.ones(p1.shape,dtype=bool)
         # Ti  = np.ma.mean(np.ma.masked_where(~mask, Temp, copy=False))
         # TiN = np.ma.mean(np.ma.masked_where( mask, Temp, copy=False))
 
@@ -166,34 +241,59 @@ for i in range(len(time)):
         mask = np.ma.getmask(np.ma.masked_where(J > 0, J, copy=False))
         #keep macroparticles in cell where mask is true
         try: cond = mask[gi,gj]
-        except: cond = np.ones(x1.shape,dtype=bool)
+        except: cond = np.ones(p1.shape,dtype=bool)
         #masked when mask is true, so invert to get values when mask is true
         # Ti  = np.ma.mean(np.ma.masked_where(~mask, Temp, copy=False))  #temp in filament
         # TiN = np.ma.mean(np.ma.masked_where( mask, Temp, copy=False))  #temp out of filament
 
     #indexes of macroparticles fulfilling the condition
-    idx = np.nonzero(cond)[0][::pStep]
-    idx_not = np.nonzero(~cond)[0][::pStep]
+    # idx = np.nonzero(cond)[0][::pStep]
+    # idx_not = np.nonzero(~cond)[0][::pStep]
 
-    """
+
+
+    #----------------------------------------------
     #would be better to get fit in each cell separetely, and divide by temp diagnostic
 
-    @numba.njit()
-    def dostuff(lx,ly,mask,gi,gj,pStep):
-        # for k in range(o.grid[0]):
-        #     for l in range(o.grid[1]):
-        for k in range(lx):
-            for l in range(ly):
-                print(k,l)
-                if mask[k,l]:
-                    idx = np.nonzero((gi==k) & (gj==l))[0][::pStep]
-                else:
-                    idx_not = np.nonzero((gi==k) & (gj==l))[0][::pStep]
+    lx = 512
+    ly = 512
 
-    dostuff(o.grid[0],o.grid[1], mask, gi, gj, pStep)
+    #average over several cells
+    #if not a dividor, remaining cells are ignored
+    xStep = 2
+    yStep = 2
+
+    #find indexes of last particles to be in a given row
+    f = [last(gi, 0, N-1, x, N) for x in range(o.grid[0])]
+
+    #slices of all particles in a given row, or number of row given by xStep
+    #sl[0] : gives all indexes of macroparticles in row 0 to xStep-1 included
+    rgeX = range(xStep-1,o.grid[0]-xStep,xStep)
+
+    sl = [None]*(len(rgeX)+1)
+    sl[0] = slice(0,f[xStep-1]+1)
+
+    for i,r in enumerate(rgeX):
+        sl[i+1] = slice(f[r]+1,f[r+xStep]+1)
+
+
+    it = ((ly, yStep, gj[s], p1[s]) for s in sl)
+
+    import time as ti
+    start = ti.time()
+    vth = pf.parallel(fitDistrib, it, o.nbrCores, noInteract=False)
+    print(ti.time()-start)
+
+    # import time as ti
+    # start = ti.time()
+    # vth = fitDistrib(ly, yStep, gj[sl[0]], p1[sl[0]])
+    # print(ti.time()-start)
+
 
     raise ValueError
-    """
+
+
+"""
 
     #----------------------------------------------
     #generate histogram
@@ -304,3 +404,4 @@ sub1.plot(time,TAN/TN,color="r")
 
 ratio = TA/T / (TAN/TN)
 sub1.plot(time,ratio,color="k")
+"""

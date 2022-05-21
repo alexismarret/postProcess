@@ -8,32 +8,56 @@ Created on Mon May 16 11:20:24 2022
 
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.optimize import leastsq
 from scipy.optimize import curve_fit
+
 plt.close("all")
+#----------------------------------------------
+n0 = 3.
+vDrift = 0.5
+T = 1e-1
+mp = 100
 
-amp = 8000
-drift = 0.5
-index = 1e3
+vth = np.sqrt(T/mp)
 
-X = np.linspace(0.3,0.7,1000)
+X = np.linspace(0.3,0.7,70)
 
-Y = amp*np.exp(-0.5*index*(X-drift)**2)
+noise = np.random.default_rng().uniform(low=0.7, high=1.3, size=len(X))
+Y = n0/(np.sqrt(2*np.pi)*vth) * np.exp(-0.5*((X-vDrift)/vth)**2) * noise
 
+#----------------------------------------------
+#gaussian funtion for fit
+def maxwellian(X, n, vth, vDrift):
 
-def gaussian(X, amp, index, drift):
+    #vth == sqrt(kBT/m)
+    gauss = n/(np.sqrt(2*np.pi)*vth) * np.exp(-0.5*((X-vDrift)/vth)**2)
 
-
-    return amp*np.exp(-0.5*index*(X-drift)**2)
-
-Famp, Findex, Fdrift  = curve_fit(gaussian, X, Y, p0=[1,1,1], maxfev=5000)[0]
-
-maxw = Famp*np.exp(-0.5*Findex*(X-Fdrift)**2)
+    return gauss
 
 
+#----------------------------------------------
+p0=[(X[1]-X[0])*np.max(Y),
+     X[-1]-X[0],
+     vDrift]
+
+Fn0, Fvth, FvDrift  = curve_fit(maxwellian, X, Y, p0=p0, maxfev=5000)[0]
+
+
+#----------------------------------------------
+Maxw      = Fn0  /(np.sqrt(2*np.pi)*Fvth)  * np.exp(-0.5*((X-FvDrift)/Fvth) **2)
+guessMaxw = p0[0]/(np.sqrt(2*np.pi)*p0[1]) * np.exp(-0.5*((X-p0[2])  /p0[1])**2)
+trueMaxw  = n0   /(np.sqrt(2*np.pi)*vth)   * np.exp(-0.5*((X-vDrift) /vth)  **2)
+
+
+#----------------------------------------------
 fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
 
-sub1.axvline(drift,color="gray",linestyle="--",linewidth=0.7)
-sub1.plot(X,Y)
+sub1.axvline(vDrift,color="gray",linestyle="--",linewidth=0.7)
+sub1.plot(X,Y,color="k")
+sub1.plot(X,trueMaxw,color="g",linestyle="dashdot")
 
-sub1.plot(X,maxw,color="r")
+sub1.plot(X,Maxw,color="r",linestyle="dashdot")
+
+sub1.plot(X,guessMaxw,color="b",linestyle="--")
+
+print(p0)
+print(n0,vth,vDrift)

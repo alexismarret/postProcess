@@ -84,7 +84,7 @@ def plot2D(data,time,extent,ind,figPath):
     return
 
 #----------------------------------------------
-run  ="CS2Drmhr"
+run  ="CS2DrmhrTrack"
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
