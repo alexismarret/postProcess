@@ -35,7 +35,7 @@ def plot2D(data,time,extent,ind,figPath):
     im=sub1.imshow(data[0,...].T,
                    extent=extent,origin="lower",
                    aspect=1,
-                   cmap="jet",norm=LogNorm(vmin = 1e-3, vmax = 1),
+                   cmap="jet",norm=LogNorm(vmin = 1e-2, vmax = 1e0),
                    interpolation="None")
 
     divider = make_axes_locatable(sub1)

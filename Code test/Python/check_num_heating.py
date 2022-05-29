@@ -15,7 +15,7 @@ from matplotlib.artist import Artist
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.colors import LogNorm
 
-import parallel_functions as pf
+import parallelFunctions as pf
 
 #----------------------------------------------
 params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 2,
@@ -27,10 +27,12 @@ plt.rcParams.update(params)
 plt.close("all")
 
 #----------------------------------------------
-run  = ("resTest/uniform2",
-        "resTest/uniform4",
-        "resTest/uniform8",
-        "resTest/uniform16")
+# run  = ("TestRes/uniform2",
+#         "TestRes/uniform4",
+#         "TestRes/uniform8",
+#         "TestRes/uniform16")
+
+run =("CS3Dtrack",)
 
 #----------------------------------------------
 fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
@@ -41,11 +43,14 @@ for r in run:
     st = slice(None,None,1)
     time = o.getTimeAxis()[st]
 
-    En_B = np.sum(o.getEnergyIntegr(time, "B"),axis=-1)
-    En_E = np.sum(o.getEnergyIntegr(time, "E"),axis=-1)
+    En_Bx, En_By, En_Bz = o.getEnergyIntegr(time, "B")
+    En_Ex, En_Ey, En_Ez = o.getEnergyIntegr(time, "E")
 
-    kin_e = o.getEnergyIntegr(time, qty="kin", species="e")
-    kin_i = o.getEnergyIntegr(time, qty="kin", species="i")
+    En_B = En_Bx + En_By + En_Bz
+    En_E = En_Ex + En_Ey + En_Ez
+
+    kin_e = o.getEnergyIntegr(time, qty="kin", species="eL")
+    kin_i = o.getEnergyIntegr(time, qty="kin", species="iL")
 
     # U_int_i =  np.mean(o.getCharge(time,"i")*(o.getUth(time, "i", "x")**2 +
     #                                             o.getUth(time, "i", "y")**2 +

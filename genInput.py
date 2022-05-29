@@ -13,12 +13,12 @@ import sys
 #2D: power of 2**2: 1, 4, 16, 64, 256, 1024, 4096
 #3D: power of 2**3: 1, 8, 64, 512, 4096
 #--------------------------------------------------------------
-dim = "2D"
-Nnodes = 16
+dim = "3D"
+Nnodes = 64
 NCPUperNodes = 64
 Nthreads = 4
 
-Ncell = np.array([512,512,512])
+Ncell = np.array([128,512,512])
 duration = 60              #in units of 1/w_pi
 
 v  = 0.5                    #velocity in units of c (=beta)
@@ -27,9 +27,9 @@ T  = 1e-6    #in units of me * c^2 (=511 KeV) in rest frame
 
 mu = 100.
 
-dx = 1/4.       #in units of c/w_pe
-dy = 1/4.
-dz = 1/4.
+dx = 1/2.       #in units of c/w_pe
+dy = 1/2.
+dz = 1/2.
 
 ppc = 8
 nPop = 4
@@ -158,8 +158,8 @@ print("Lx =",Lx,"[c/wpe] <->",round(Lx/ratio_l_i_l_e,1),"[c/wpi]")
 if   dim=="2D":
     print("Ly =",Ly,"[c/wpe] <->",round(Ly/ratio_l_i_l_e,1),"[c/wpi]")
 elif dim=="3D":
-    print("Ly =",Lx,"[c/wpe] <->",round(Ly/ratio_l_i_l_e,1),"[c/wpi]")
-    print("Lz =",Lx,"[c/wpe] <->",round(Lz/ratio_l_i_l_e,1),"[c/wpi]")
+    print("Ly =",Ly,"[c/wpe] <->",round(Ly/ratio_l_i_l_e,1),"[c/wpi]")
+    print("Lz =",Lz,"[c/wpe] <->",round(Lz/ratio_l_i_l_e,1),"[c/wpi]")
 
 print("-------------------------------")
 print("tFinal =",round(durationWpe),"[1/wpe] <->",

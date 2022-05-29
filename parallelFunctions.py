@@ -55,17 +55,19 @@ def parallel(function, it, nbrCores, noInteract=False):
         return np.asarray(results)
 
 
-
 #--------------------------------------------------------------
-def readData(dataPath, sl, av):
+def readGridData(dataPath, sl, av, transpose):
 
     with h5py.File(dataPath,"r") as f:
 
-        #read slice of data, average, then transpose
+        #read slice of data, average, then transpose if needed
         if av!=None:
-            return np.mean(f[list(f.keys())[-1]][sl], axis=av).T
+            if transpose: return np.mean(f[list(f.keys())[-1]][sl], axis=av).T
+            else:         return np.mean(f[list(f.keys())[-1]][sl], axis=av)
+
         else:
-            return         f[list(f.keys())[-1]][sl].T
+            if transpose: return f[list(f.keys())[-1]][sl].T
+            else:         return f[list(f.keys())[-1]][sl]
 
 
 #--------------------------------------------------------------
@@ -74,7 +76,6 @@ def readRawData(dataPath, key):
     with h5py.File(dataPath,"r") as f:
 
         return f[key][()]
-
 
 
 #--------------------------------------------------------------

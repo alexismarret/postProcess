@@ -10,6 +10,7 @@ Created on Mon Apr  4 09:22:24 2022
 import osiris
 import numpy as np
 import matplotlib.pyplot as plt
+import parallelFunctions as pf
 
 #----------------------------------------------
 params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 1,
@@ -24,10 +25,9 @@ plt.rcParams.update(params)
 run  ="CS2DrmhrTrack"
 o = osiris.Osiris(run,spNorm="iL")
 
-sx = slice(None,None,1)
 st = slice(None,None,1)
-x    = o.getAxis("x")[sx]
-y    = o.getAxis("y")[sx]
+x    = o.getAxis("x")
+y    = o.getAxis("y")
 time = o.getTimeAxis()[st]
 
 #----------------------------------------------
@@ -50,6 +50,8 @@ def cor(a,b):
 
     return c
 
+
+
 #----------------------------------------------
 cor_iL = cor(o.getUth(time,"iL","x")**2*o.rqm[o.sIndex("iL")],
               o.getCharge(time, "iL"))
@@ -68,6 +70,7 @@ ratio = np.mean(np.abs(o.getUfluid(time, "iL","y") /
                        (o.getUfluid(time, "iL","x")+eps)),axis=(1,2))
 
 
+
 """
 Ex =  np.abs(o.getE(time,"y"))
 cov_iL = cov(o.getUth(time,"iL","x")**2*o.getRatioQM("iL"),
@@ -82,6 +85,7 @@ cov_eL = cov(o.getUth(time,"eL","x")**2,
 cov_eR = cov(o.getUth(time,"eR","x")**2,
               Ex)
 """
+
 #----------------------------------------------
 fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
 
@@ -101,3 +105,4 @@ sub1.axhline(0,color="gray",linestyle="--",linewidth=0.7)
 sub1.legend(frameon=False)
 
 plt.savefig(o.path+"/plots/correlation.png",dpi="figure")
+

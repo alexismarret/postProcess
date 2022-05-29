@@ -99,24 +99,66 @@ if plotSpectrum2D:
 
 
     #----------------------------------------------
-    axis_kX = np.fft.fftfreq(len(x),x[1]-x[0]) *2*np.pi
-    axis_kY = np.fft.fftfreq(len(y),y[1]-y[0]) *2*np.pi
+    axis_kX = np.fft.rfftfreq(len(x),x[1]-x[0]) *2*np.pi
+    axis_kY = np.fft.rfftfreq(len(y),y[1]-y[0]) *2*np.pi
 
-    eps = 1e-9
-    ftB = np.abs(np.fft.fft2(o.getB(time,"z"),axes=(1,2))) + eps
+    eps = 0
+    indMid = len(x)//2
+
     extent=(min(axis_kX),max(axis_kX),min(axis_kY),max(axis_kY))
+    stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
 
     #----------------------------------------------
-    path = o.path+"/plots/fourier"
-    o.setup_dir(path)
+    #----------------------------------------------
+    data = o.getB(time,"z")
 
-    stages = pf.distrib_task(0, len(ftB)-1, o.nbrCores)
+    ftB = np.abs(np.fft.fft2(data,axes=(1,2)))
+    ftB = ftB[:,:indMid+1,indMid-1:] + eps
+
+    #----------------------------------------------
+    path = o.path+"/plots/fourierBz"
+    o.setup_dir(path)
 
     it = ((ftB [s[0]:s[1]],
            time[s[0]:s[1]],
            extent, s[0], path) for s in stages)
 
     pf.parallel(plot2D, it, o.nbrCores, noInteract=True)
+
+    #----------------------------------------------
+    #----------------------------------------------
+    data = o.getE(time,"x")
+
+    ftB = np.abs(np.fft.fft2(data,axes=(1,2)))
+    ftB = ftB[:,:indMid+1,indMid-1:] + eps
+
+    #----------------------------------------------
+    path = o.path+"/plots/fourierEx"
+    o.setup_dir(path)
+
+    it = ((ftB [s[0]:s[1]],
+           time[s[0]:s[1]],
+           extent, s[0], path) for s in stages)
+
+    pf.parallel(plot2D, it, o.nbrCores, noInteract=True)
+
+    #----------------------------------------------
+    #----------------------------------------------
+    data = o.getE(time,"y")
+
+    ftB = np.abs(np.fft.fft2(data,axes=(1,2)))
+    ftB = ftB[:,:indMid+1,indMid-1:] + eps
+
+    #----------------------------------------------
+    path = o.path+"/plots/fourierEy"
+    o.setup_dir(path)
+
+    it = ((ftB [s[0]:s[1]],
+           time[s[0]:s[1]],
+           extent, s[0], path) for s in stages)
+
+    pf.parallel(plot2D, it, o.nbrCores, noInteract=True)
+
 
 
 #----------------------------------------------

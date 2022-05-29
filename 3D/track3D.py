@@ -9,6 +9,7 @@ Created on Fri Apr 29 16:53:41 2022
 #----------------------------------------------
 import osiris
 import numpy as np
+from scipy.integrate import cumulative_trapezoid
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 import trackParticles as tr
@@ -23,26 +24,29 @@ plt.rcParams.update(params)
 plt.close("all")
 
 #----------------------------------------------
-run  ="CS3Dtrack"
-spNorm = "eL"
+# run  ="CS3Dtrack"
+run ="CS3Dtrack"
+spNorm = "iL"
 o = osiris.Osiris(run,spNorm=spNorm)
 
-species ="eL"
+species ="iL"
 
 #----------------------------------------------
 #index of macroparticle
-sPart = slice(None,None,1)
+sPart = slice(None,None,10)
 sTime = slice(None,None,1)
 sl = (sPart,sTime)
 
 curveDrift = False
 maxwellian = False
-checkEnergy = False
+checkEnergy = True
 mult = True
 
 #plot parameters
 show = True
-division = 1
+dispMax=True
+dispMean=False
+# division = 1
 pause = 1e-8
 alpha = 2e-2
 
@@ -52,17 +56,20 @@ mu      = o.rqm[o.sIndex(species)]
 pCharge = mu / np.abs(mu)
 
 #macroparticle, iteration
-t   = tr.getTrackData(o.path,species,"t"  )[sl]
-p1  = tr.getTrackData(o.path,species,"p1" )[sl]
-p2  = tr.getTrackData(o.path,species,"p2" )[sl]
-p3  = tr.getTrackData(o.path,species,"p3" )[sl]
-ene = tr.getTrackData(o.path,species,"ene")[sl] * np.abs(mu)
-e1  = tr.getTrackData(o.path,species,"E1" )[sl]
-e2  = tr.getTrackData(o.path,species,"E2" )[sl]
-e3  = tr.getTrackData(o.path,species,"E3" )[sl]
+ene = o.getTrackData(species, "ene",sl=sl) * np.abs(mu)
+t   = o.getTrackData(species, "t",  sl=sl)
+p1  = o.getTrackData(species, "p1", sl=sl)
+p2  = o.getTrackData(species, "p2", sl=sl)
+p3  = o.getTrackData(species, "p3", sl=sl)
+e1  = o.getTrackData(species, "E1", sl=sl)
+e2  = o.getTrackData(species, "E2", sl=sl)
+e3  = o.getTrackData(species, "E3", sl=sl)
 
-dt = (t[0,1]-t[0,0])
-t /= np.sqrt(np.abs(muNorm))
+
+
+
+
+imax = np.where(ene[:,-1]==np.max(ene[:,-1]))[0][0]  #index of most energetic particle
 
 lorentz = np.sqrt(1+p1**2+p2**2+p3**2)
 p1 /= lorentz
@@ -74,12 +81,25 @@ work2 = pCharge * e2*p2
 work3 = pCharge * e3*p3
 work = work1+work2+work3
 
-intWork1 = np.cumsum(work1 *dt,axis=-1)
-intWork2 = np.cumsum(work2 *dt,axis=-1)
-intWork3 = np.cumsum(work3 *dt,axis=-1)
+# intWork1 = np.cumsum(work1 *dt,axis=-1)
+# intWork2 = np.cumsum(work2 *dt,axis=-1)
+# intWork3 = np.cumsum(work3 *dt,axis=-1)
+def integral(Y,dx):
+
+    from scipy.interpolate import interp1d
+    interp_linearX=interp1d(grid[0], B[...,0], kind='linear')
+
+
+
+
+    return i
+
+intWork1 = cumulative_trapezoid(work1,t,axis=-1,initial=0)
+intWork2 = cumulative_trapezoid(work2,t,axis=-1,initial=0)
+intWork3 = cumulative_trapezoid(work3,t,axis=-1,initial=0)
 intWork  = intWork1+intWork2+intWork3
 
-imax = np.where(ene[:,-1]==np.max(ene[:,-1]))[0][0]  #index of most energetic particle
+# t /= np.sqrt(np.abs(muNorm))
 #----------------------------------------------
 # if not show:
 #     plt.switch_backend('Agg')
@@ -87,15 +107,16 @@ imax = np.where(ene[:,-1]==np.max(ene[:,-1]))[0][0]  #index of most energetic pa
 
 if checkEnergy:
     #----------------------------------------------
-    fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300,sharex=True,sharey=True)
+    fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
 
-    d_ene_dt = np.gradient(ene[0],dt)
+    dt = (t[0,1]-t[0,0])
+    d_ene_dt = np.gradient(ene[imax],dt)
     # d_ene_dt2 = (ene[1:]-ene[:-1])/dt
 
     sub1.axhline(0,color="gray",linestyle="--",linewidth=0.7)
-    sub1.plot(t[0],d_ene_dt,color="r",label=r"$d_t\ ene$")
+    sub1.plot(t[imax]-dt/2,d_ene_dt,color="r",label=r"$d_t\ ene$")
     # sub1.plot(t[1:],d_ene_dt2,color="orange",label=r"$d_t\ ene$",linestyle="--")
-    sub1.plot(t[0],work[0],color="b",label=r"$W$")
+    sub1.plot(t[imax],work[imax],color="b",label=r"$W$")
 
     sub1.legend(frameon=False)
 
@@ -142,31 +163,39 @@ if mult:
         # sub2.plot(t[i], intWork1[i],color="r")
         # sub3.plot(t[i], intWork2[i],color="g")
 
-    sub1.plot(t[imax],ene[imax],color="r",
-              label=r"$\max(\mathcal{E}_{kin})$")
-    sub1.plot(t[imax],intWork1[imax],color="r",linestyle="dashed",
-              label=r"$\max(\mathrm{q}\int\bf{v}\cdot\bf{E}_x \mathrm{dt})$")
-    sub1.plot(t[imax],intWork2[imax],color="r",linestyle="dotted",
-              label=r"$\max(\mathrm{q}\int\bf{v}\cdot\bf{E}_y \mathrm{dt})$")
-    sub1.plot(t[imax],intWork3[imax],color="r",linestyle="dashdot",
-              label=r"$\max(\mathrm{q}\int\bf{v}\cdot\bf{E}_z \mathrm{dt})$")
-    sub1.plot(t[imax],intWork[imax],color="b",linestyle="-",
-              label=r"$\langle \mathrm{q}\int\bf{v}\cdot\bf{E} \mathrm{dt}\rangle$")
+    #----------------------------------------------
+    if dispMax:
+        sub1.plot(t[imax],ene[imax],color="r",
+                  label=r"$\max(\mathcal{E}_{kin})$")
 
-    # sub1.plot(t[0],np.mean(ene,axis=0),color="b",
-    #           label=r"$\langle\mathcal{E}_{kin}\rangle$")
+        sub1.plot(t[imax],intWork1[imax],color="g",linestyle="-",
+                  label=r"$\max(\mathrm{q}\int\bf{v}\cdot\bf{E}_x \mathrm{dt})$")
+        sub1.plot(t[imax],intWork2[imax],color="b",linestyle="-",
+                  label=r"$\max(\mathrm{q}\int\bf{v}\cdot\bf{E}_y \mathrm{dt})$")
+        sub1.plot(t[imax],intWork3[imax],color="orange",linestyle="-",
+                  label=r"$\max(\mathrm{q}\int\bf{v}\cdot\bf{E}_z \mathrm{dt})$")
+        # sub1.plot(t[imax],intWork[imax],color="b",linestyle="-",
+        #           label=r"$\max(\mathrm{q}\int\bf{v}\cdot\bf{E} \mathrm{dt})$")
 
-    # sub1.plot(t[0],np.mean(intWork1,axis=0),color="b",linestyle="dashed",
-    #           label=r"$\langle \mathrm{q}\int\bf{v}\cdot\bf{E}_x \mathrm{dt}\rangle$")
-    # sub1.plot(t[0],np.mean(intWork2,axis=0),color="b",linestyle="dotted",
-    #           label=r"$\langle \mathrm{q}\int\bf{v}\cdot\bf{E}_y \mathrm{dt}\rangle$")
-    # sub1.plot(t[0],np.mean(intWork3,axis=0),color="b",linestyle="dashdot",
-    #           label=r"$\langle \mathrm{q}\int\bf{v}\cdot\bf{E}_z \mathrm{dt}\rangle$")
+        sub1.plot(t[imax],intWork[imax]+ene[imax,0],color="k",linestyle="dotted",
+                  label=r"$\max(\mathrm{q}\int\bf{v}\cdot\bf{E} \mathrm{dt})+\mathcal{E}_0$")
 
+    #----------------------------------------------
+    if dispMean:
+        sub1.plot(t[0],np.mean(ene,axis=0),color="r",
+                  label=r"$\langle\mathcal{E}_{kin}\rangle$")
+
+        sub1.plot(t[0],np.mean(intWork1,axis=0),color="g",linestyle="-",
+                  label=r"$\langle \mathrm{q}\int\bf{v}\cdot\bf{E}_x \mathrm{dt}\rangle$")
+        sub1.plot(t[0],np.mean(intWork2,axis=0),color="b",linestyle="-",
+                  label=r"$\langle \mathrm{q}\int\bf{v}\cdot\bf{E}_y \mathrm{dt}\rangle$")
+        sub1.plot(t[0],np.mean(intWork3,axis=0),color="orange",linestyle="-",
+                  label=r"$\langle \mathrm{q}\int\bf{v}\cdot\bf{E}_z \mathrm{dt}\rangle$")
 
 
     sub1.legend(frameon=False,loc="upper right")
 
+#----------------------------------------------
 if maxwellian:
     def fitEnergyMaxwellian(X, Y, pinit=[1,1]):
         from scipy.optimize import leastsq
@@ -217,7 +246,7 @@ if curveDrift:
 
     x1  = tr.getTrackData(o.path,species,"x1" )[sl]
     x2  = tr.getTrackData(o.path,species,"x2" )[sl]
-    x3  = tr.getTrackData(o.path,species,"x2" )[sl]
+    x3  = tr.getTrackData(o.path,species,"x3" )[sl]
 
     bx  = tr.getTrackData(o.path,species,"B1" )[sl]
     by  = tr.getTrackData(o.path,species,"B2" )[sl]

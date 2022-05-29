@@ -12,8 +12,13 @@ import numpy as np
 
 
 
+
+
+
+
+
 #--------------------------------------------------------------
-def getTrackData(path, species, qty):
+def readUnorderedTrackData(path, species, qty):
     # Read chunked hdf5 track data and order it correctly.
     # This works because of the 'itermap' member. Every row of itermap contains information about the next
     # several rows of the 'data' attribute. Each row of itermap is (itrack, chunklen, isimulation) where
@@ -137,4 +142,51 @@ def reorderTableNumba(data, itermap, ntracks):
             ioutput_all[iquant, itrack-1] += chunklen # Set cursor to the next open row in the output
 
     return output
+"""
+
+"""
+def getTrackDataByIndex(fname,indices=[]):
+    # Read chunked hdf5 track data for a few tracks.
+    # This works because of the 'itermap' member. Every row of itermap contains information about the next
+    # several rows of the 'data' attribute. Each row of itermap is (itrack, chunklen, isimulation) where
+    # itrack is the particle track id for the next chunklen rows of the 'data' member, and begins at sim step
+    # isimulation. This function only loads the parts of the track file corresponding to the particles in indices.
+    #
+    # Input: fname: Filename of the track data
+    #        indices: list of particle indices to read. If empty, all particles are returned. The indices start at 1
+    #                 and correspond to the tag's position in the tag file, i.e. the first tag in your file has index=1.
+    # Output: a list of dicts containing the track data. Keys are ['t', 'q', 'ene', 'x1', 'x2', 'p1', 'p2', 'p3']
+    #    If you enabled ifdmp_tracks_efl or ifdmp_tracks_bfl, it may include ['E1', 'E2', 'E3', 'B1', 'B2', 'B3']
+    #    Each element of the dict is a 1D array
+
+    tracks = h5py.File(fname, 'r')
+    #print([e for e in tracks.attrs])
+    labels = [s.decode() for s in tracks.attrs['QUANTS']] # Get quant labels as regular (non-binary) strings
+    data = tracks['data'] # Leave data as a HDF5 object since we're only going to access part of the dataset.
+    itermap = tracks['itermap'][:] # Get itermap as a numeric array
+
+    # We'll just do this without Numba since we don't want to load the whole data file. This should be faster if only a few tracks are needed.
+    output_all = []
+    idata_itermap = np.concatenate([[0],np.cumsum(itermap[:,1])[:-1]])  # This is the read cursor location for each chunk of data corresponding to a row of itermap
+    for itrack in indices:
+        output = []
+        itermap_indices = np.where(itermap[:,0] == itrack)[0]
+        if len(itermap_indices)==0:
+            print('No track data avilable for track index '+str(itrack))
+            return
+        for i_itermap in itermap_indices: # for each chunk of itermap (and data) corresponding to this particle
+            itrack, chunklen, isimulation = itermap[i_itermap,:] # info about this chunk of data
+            idata = idata_itermap[i_itermap] # Read cursor location in data
+            output.append(data[idata:idata+chunklen,:])
+        output = np.concatenate(output,axis=0)
+        output_dict = {}
+        for i,label in enumerate(labels[1:]):
+            output_dict[label] = output[:,i]
+        output_all.append(output_dict)
+
+    return output_all
+
+
+
+a = getTrackDataByIndex("/home/alexis/Science/Stanford/Simulations/CS3Dtrack/MS/TRACKS/eL-tracks.h5",[1])
 """

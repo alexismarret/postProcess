@@ -93,9 +93,9 @@ time = o.getTimeAxis()[st]
 
 #----------------------------------------------
 
-uxB_x = - o.crossProduct(o.getUfluid(time, "iL","x"),
-                         o.getUfluid(time, "iL","y"),
-                         o.getUfluid(time, "iL","z"),
+uxB_x = - o.crossProduct(o.getUfluid(time, "eL","x")+o.getUfluid(time, "eR","x"),
+                         o.getUfluid(time, "eL","y")+o.getUfluid(time, "eR","y"),
+                         o.getUfluid(time, "eL","z")+o.getUfluid(time, "eR","z"),
                          o.getB(time,"x"),
                          o.getB(time,"y"),
                          o.getB(time,"z"))[0]

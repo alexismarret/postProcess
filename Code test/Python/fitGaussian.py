@@ -29,23 +29,28 @@ Y = n0/(np.sqrt(2*np.pi)*vth) * np.exp(-0.5*((X-vDrift)/vth)**2) * noise
 def maxwellian(X, n, vth, vDrift):
 
     #vth == sqrt(kBT/m)
-    gauss = n/(np.sqrt(2*np.pi)*vth) * np.exp(-0.5*((X-vDrift)/vth)**2)
+    # gauss = n/(np.sqrt(2*np.pi)*vth) * np.exp(-0.5*((X-vDrift)/vth)**2)
+    gauss = n * np.exp(-((X-vDrift)/vth)**2)
 
     return gauss
 
 
 #----------------------------------------------
-p0=[(X[1]-X[0])*np.max(Y),
-     X[-1]-X[0],
-     vDrift]
+ma = max(Y)
+p0 = [ma,
+      np.std(X),
+      X[np.where(Y==ma)[0][0]]]
 
 Fn0, Fvth, FvDrift  = curve_fit(maxwellian, X, Y, p0=p0, maxfev=5000)[0]
 
 
 #----------------------------------------------
-Maxw      = Fn0  /(np.sqrt(2*np.pi)*Fvth)  * np.exp(-0.5*((X-FvDrift)/Fvth) **2)
+# Maxw      = Fn0  /(np.sqrt(2*np.pi)*Fvth)  * np.exp(-0.5*((X-FvDrift)/Fvth) **2)
 guessMaxw = p0[0]/(np.sqrt(2*np.pi)*p0[1]) * np.exp(-0.5*((X-p0[2])  /p0[1])**2)
 trueMaxw  = n0   /(np.sqrt(2*np.pi)*vth)   * np.exp(-0.5*((X-vDrift) /vth)  **2)
+
+Maxw      = Fn0   * np.exp(-((X-FvDrift)/Fvth) **2)
+
 
 
 #----------------------------------------------
@@ -61,3 +66,4 @@ sub1.plot(X,guessMaxw,color="b",linestyle="--")
 
 print(p0)
 print(n0,vth,vDrift)
+print(Fn0, Fvth, FvDrift)

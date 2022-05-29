@@ -14,12 +14,14 @@ import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 from matplotlib.patches import Rectangle
 from scipy import signal
+from scipy.stats import skew
 
 from matplotlib.artist import Artist
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.colors import LogNorm
 
 import parallelFunctions as pf
+import time as ti
 
 #----------------------------------------------
 params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 2,
@@ -29,9 +31,182 @@ params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 2,
         'figure.autolayout': True, 'text.usetex': True}
 plt.rcParams.update(params)
 plt.close("all")
+plt.switch_backend('Qt5Agg')
 
 #----------------------------------------------
-run  ="CS2DrmhrTrack"
+#https://www.geeksforgeeks.org/find-first-and-last-positions-of-an-element-in-a-sorted-array/
+# if x is present in arr[] then
+# returns the index of LAST occurrence
+# of x in arr[0..n-1]
+def last(arr, low, high, x, n):
+    if (high >= low) :
+        mid = low + (high - low) // 2
+        if (( mid == n - 1 or x < arr[mid + 1]) and arr[mid] == x) :
+            return mid
+        elif (x < arr[mid]) :
+            return last(arr, low, (mid - 1), x, n)
+        else :
+            return last(arr, (mid + 1), high, x, n)
+
+    return
+
+#----------------------------------------------
+#gaussian funtion for fit
+def maxwellian(X, n, vth, vDrift):
+
+    #vth == sqrt(kBT/m)
+    # gauss = n/(np.sqrt(2*np.pi)*vth) * np.exp(-0.5*((X-vDrift)/vth)**2)
+
+    #n is amplitude, mix of vth and density, but not important here so free parameter
+    #only vDrfit and vth are important, simplify fitting and avoid degeneracy
+    #vth == sqrt(kBT/m)
+    #factor exp(1/2) goes into n
+    #can return vth negative
+
+    return n * np.exp(-((X-vDrift)/vth)**2)
+
+
+#----------------------------------------------
+def sliceGrid(g, l, step):
+
+    N = len(g)
+
+    #find indexes of last particles to be in a given row, from sorted array g
+    f = [last(g, 0, N-1, x, N) for x in range(g[-1]+1)]
+
+    #slices of all particles in a given row or column, or number of row or column given by xStep
+    #None if no macroparticles
+    #sl[0] : gives all indexes of macroparticles in row or column 0 to xStep-1 included
+    sl = [None]*(l//step)
+
+    try: sl[0] = slice(0,f[step-1]+1)
+    except TypeError: sl[0] = None  #in case no particles in given row or column
+
+    rgeX = range(step-1,l-step,step)
+    for j,r in enumerate(rgeX):
+        try: sl[j+1] = slice(f[r]+1,f[r+step]+1)
+        except TypeError: continue
+        except IndexError: continue
+
+    return sl
+
+#----------------------------------------------
+def fitDistrib(ly, yStep, gj, p, time=None, j=None, sub=None, check=False):
+
+    mf = 1000  #max number of iterations for fit
+    minN = 5   #min number of macroparticles required to attempt postprocessing
+    nbins = 70  #number of bins of histogram
+    showGuess = False
+    showLim =False
+    fit = False
+    fitFactor = 0.05
+
+    argsort = np.argsort(gj)
+    p = p[argsort]
+    sl = sliceGrid(gj[argsort], ly, yStep)
+
+    vth = np.empty(ly//yStep)
+    vth.fill(np.nan)
+    skewness = np.empty(ly//yStep)
+    skewness.fill(np.nan)
+
+    for k,s in enumerate(sl):
+
+        if (len(p[s])<minN):
+            # print("not enough parts")
+            continue
+
+        #----------------------------------------------
+        h, b = np.histogram(p[s],bins=nbins)
+        skewness[k] = skew(h)
+
+        if not fit: continue
+
+        ma = np.max(h)
+        idMax = np.where(h==ma)[0][0]
+        p0 = [ma, np.std(b), b[idMax]]
+
+        b = b[:-1]
+        condMax = (b<b[idMax]*(1+fitFactor))
+        condMin = (b>b[idMax]*(1-fitFactor))
+        cond = condMax & condMin
+
+        #----------------------------------------------
+        if not check:
+            try:
+                vth[k] = curve_fit(maxwellian, b[cond], h[cond], p0=p0, maxfev=mf)[0][1]
+            except RuntimeError:
+                # print("No fit found")
+                continue
+            except TypeError:
+                # print("not enoug bins")
+                continue
+
+        #----------------------------------------------
+        elif check:
+
+            #handle single or multiple subplots
+            try: kjSub = sub[k,j]
+            except TypeError: kjSub = sub
+
+            #show initial guess
+            if showGuess:
+                test = maxwellian(b, p0[0], p0[1], p0[2])
+                kjSub.plot(b,test,color="b",label=r"$Guess$")
+
+            #display restricted window
+            if showLim:
+                diffMin = np.abs(b-b[idMax]*(1-fitFactor))
+                diffMax = np.abs(b-b[idMax]*(1+fitFactor))
+                idCondMin = np.where(diffMin==np.min(diffMin))[0][0]
+                idCondMax = np.where(diffMax==np.min(diffMax))[0][0]
+
+                # kjSub.axvline(b[idMax],color="gray",linestyle="--",linewidth=0.7)
+                kjSub.axvline(b[idCondMin],color="gray",linestyle="--",linewidth=0.7)
+                kjSub.axvline(b[idCondMax],color="gray",linestyle="--",linewidth=0.7)
+
+            #display data
+            kjSub.plot(b,h,color="orange",label=r"$Distribution$")
+
+            #do fit
+            try:
+                n, vth[k], vDrift = curve_fit(maxwellian, b[cond], h[cond], p0=p0, maxfev=mf)[0]
+            except RuntimeError:
+                # print("No fit found")
+                continue
+            except TypeError:
+                # print("not enoug bins")
+                continue
+
+            #plot fit
+            maxw = maxwellian(b, n, vth[k], vDrift)
+            kjSub.plot(b,maxw,color="k",linestyle="--",linewidth=1.5,label=r"$Fit$")
+
+            # print(p0)
+            # print(n, vth[k], vDrift)
+
+            kjSub.text(1, 1.04,
+                            r"$(Gx,Gy)=(%.0f,%.0f)$"
+                            %(j,k),
+                            horizontalalignment='right',
+                            verticalalignment='bottom',
+                            transform=kjSub.transAxes)
+
+            if (k,j) == (0,0):
+                kjSub.text(0.35, 1.03,
+                                r"$t=%.1f\ [\omega_{pi}^{-1}]$"%time,
+                                horizontalalignment='right',
+                                verticalalignment='bottom',
+                                transform=kjSub.transAxes)
+                kjSub.legend(frameon=False)
+
+    #vth can be negative due to the fitting method, but absolute value is the same
+    return np.abs(vth), skewness
+
+#----------------------------------------------
+#----------------------------------------------
+# run  ="CS2DrmhrTrack"
+run = "CS2DrmhrRawLall"
 o = osiris.Osiris(run,spNorm="iL")
 
 species = "iL"
@@ -42,20 +217,33 @@ y    = o.getAxis("y")
 time = o.getTimeAxis(species=species, raw=True)[st]
 
 #----------------------------------------------
-pStep = 1
-
-fitFactor = 1
-mf = 100000  #number of iterations max for fit
 stdf = 1      #filter standard deviation
 
-show=True       #draw figures of fit
 helpPos=False      #figure helper for region to consider
 do_filter=False    #filter histogram
 
 #filter criterion
 window=False      #macroparticles within given position interval
-density=True       #macroparticles within cells with density condition
+density=False       #macroparticles within cells with density condition
 current=False       #macroparticles within cells with current condition
+
+#fitting
+parallel=True
+check=False
+
+lx = 512
+ly = 512
+
+#number of cells to consider for computing the global distribution function
+#if not a dividor, remaining cells are ignored
+xStep = 1
+yStep = 1
+
+Nx = lx//xStep
+Ny = ly//yStep
+
+slx = slice(None,lx,xStep)
+sly = slice(None,ly,yStep)
 
 #----------------------------------------------
 if window or helpPos:
@@ -88,111 +276,15 @@ if helpPos:
     raise ValueError
 
 #----------------------------------------------
-#setup figure
-if show:
-    plotPath = o.path+"/plots/distribIN"
+ufl0 = o.ufl[o.sIndex(species)]
+vInit = ufl0[0] / np.sqrt(1+ufl0[0]**2+ufl0[1]**2+ufl0[2]**2)
 
-    o.setup_dir(plotPath)
-    fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
-
-    sub1.set_xscale("log")
-    sub1.set_yscale("log")
-
-    sub1.set_xlim(0.3,0.6)
-    sub1.set_ylim(1,1e5)
-
-    sub1.set_xlabel(r"$v\ [c]$")
-
-#----------------------------------------------
-#gaussian funtion for fit
-def maxwellian(X, n, vth, vDrift):
-
-    #vth == sqrt(kBT/m)
-    gauss = n/(np.sqrt(2*np.pi)*vth) * np.exp(-0.5*((X-vDrift)/vth)**2)
-
-    return gauss
-
-#----------------------------------------------
-def fitDistrib(ly, yStep, gj, p):
-
-    nbins = 100
-    mf = 10000
-
-    rgeY = range(0,ly-yStep,yStep)
-    vth = np.zeros(len(rgeY))
-
-    for i,r in enumerate(rgeY):
-
-        #macroparticles in row or group of row
-        idx = np.nonzero((gj >= r) & (gj < r+yStep))[0]     #slowest operation
-
-
-        #----------------------------------------------
-        #generate histogram
-        h, b = np.histogram(p[idx],bins=nbins)
-
-
-        vth[i] = curve_fit(maxwellian, b[:-1], h, p0=[(b[1]- b[0])*np.max(h),
-                                                       b[-1]-b[0],
-                                                       vInit],
-                                                        maxfev=mf)[0][0]
-
-        # #----------------------------------------------
-        # n, vth, vDrift = curve_fit(maxwellian, b[:-1], h, p0=[(b[1]- b[0])*np.max(h),
-        #                                                        b[-1]-b[0],
-        #                                                        vInit],
-        #                                                   maxfev=mf)[0]
-        # b = b[:-1]
-        # fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
-        # sub1.plot(b,h,color="r")
-
-        # maxw = n/(np.sqrt(2*np.pi)*vth) * np.exp(-0.5*((b-vDrift)/vth)**2)
-
-        # sub1.plot(b,maxw,color="k")
-
-
-        # db = b[-1]-b[0]
-        # no = np.max(h*db)
-        # vstd = db/10
-
-        # print(no,vstd,vDrift)
-        # print(n, vth, vDrift)
-
-        # test = no/(np.sqrt(2*np.pi)*vstd) * np.exp(-0.5*((b-vInit)/vstd)**2)
-        # sub1.plot(b,test,color="b")
-
-    return vth
-
-#----------------------------------------------
-#https://www.geeksforgeeks.org/find-first-and-last-positions-of-an-element-in-a-sorted-array/
-# if x is present in arr[] then
-# returns the index of LAST occurrence
-# of x in arr[0..n-1]
-def last(arr, low, high, x, n) :
-    if (high >= low) :
-        mid = low + (high - low) // 2
-        if (( mid == n - 1 or x < arr[mid + 1]) and arr[mid] == x) :
-            return mid
-        elif (x < arr[mid]) :
-            return last(arr, low, (mid - 1), x, n)
-        else :
-            return last(arr, (mid + 1), high, x, n)
-
-    return
-
-
-#----------------------------------------------
-T  = np.zeros(len(time))
-TA = np.zeros(len(time))
-TN  = np.zeros(len(time))
-TAN = np.zeros(len(time))
-
-ufl0 = o.ufl[o.sIndex(species)][0]
-vInit = ufl0 / np.sqrt(1+ufl0**2)
+vth = np.zeros((len(time),lx//xStep,ly//yStep))
+skewness = np.zeros((len(time),lx//xStep,ly//yStep))
 
 #----------------------------------------------
 for i in range(len(time)):
-
+    print("time:",time[i])
     #----------------------------------------------
     #get macroparticles data, skip if none
     x1 = o.getRaw(time[i], species, "x1")
@@ -214,8 +306,6 @@ for i in range(len(time)):
     #index of macroparticles cell, sorted along x
     gi, gj = o.findCell((x1[argsort],x2[argsort]))
 
-    #get temperature from whole macroparticles distribution
-    # Temp = o.getUth(time[i], species, "x")**2 *o.rqm[o.sIndex(species)]
     #----------------------------------------------
     if window:
         #index of macroparticles in the wanted position interval
@@ -247,161 +337,44 @@ for i in range(len(time)):
         # TiN = np.ma.mean(np.ma.masked_where( mask, Temp, copy=False))  #temp out of filament
 
     #indexes of macroparticles fulfilling the condition
-    # idx = np.nonzero(cond)[0][::pStep]
-    # idx_not = np.nonzero(~cond)[0][::pStep]
-
-
 
     #----------------------------------------------
-    #would be better to get fit in each cell separetely, and divide by temp diagnostic
+    if check:
+        fig, sub = plt.subplots(Nx,Ny,figsize=(4.1,4.1),dpi=300)
 
-    lx = 512
-    ly = 512
-
-    #average over several cells
-    #if not a dividor, remaining cells are ignored
-    xStep = 2
-    yStep = 2
-
-    #find indexes of last particles to be in a given row
-    f = [last(gi, 0, N-1, x, N) for x in range(o.grid[0])]
-
-    #slices of all particles in a given row, or number of row given by xStep
-    #sl[0] : gives all indexes of macroparticles in row 0 to xStep-1 included
-    rgeX = range(xStep-1,o.grid[0]-xStep,xStep)
-
-    sl = [None]*(len(rgeX)+1)
-    sl[0] = slice(0,f[xStep-1]+1)
-
-    for i,r in enumerate(rgeX):
-        sl[i+1] = slice(f[r]+1,f[r+xStep]+1)
-
-
-    it = ((ly, yStep, gj[s], p1[s]) for s in sl)
-
-    import time as ti
-    start = ti.time()
-    vth = pf.parallel(fitDistrib, it, o.nbrCores, noInteract=False)
-    print(ti.time()-start)
-
-    # import time as ti
-    # start = ti.time()
-    # vth = fitDistrib(ly, yStep, gj[sl[0]], p1[sl[0]])
-    # print(ti.time()-start)
-
-
-    raise ValueError
-
-
-"""
+        for Rsub in range(Ny):
+            for Csub in range(Nx):
+                #draw labels
+                if Ny==1:
+                    if Csub==0:    sub.set_ylabel(r"$count$")
+                    if Rsub==Ny-1: sub.set_xlabel(r"$v$")
+                else:
+                    plotIndex = (Rsub,Csub)
+                    if Csub==0:    sub[plotIndex].set_ylabel(r"$count$")
+                    if Rsub==Ny-1: sub[plotIndex].set_xlabel(r"$v$")
+    else: sub = None
 
     #----------------------------------------------
-    #generate histogram
-    histogram, bins = np.histogram(p1[idx],bins=200)
-    histogram_not, bins_not = np.histogram(p1[idx_not],bins=200)
+    sl = sliceGrid(gi, lx, xStep)
+    it = ((ly, yStep, gj[s], p1[s]) for j,s in enumerate(sl))
 
-    if do_filter:
-        win=signal.gaussian(len(histogram),stdf)   #window
-        winN=signal.gaussian(len(histogram_not),stdf)
+    if parallel:
+        start = ti.time()
+        vth[i], skewness[i] = pf.parallel(fitDistrib, it, o.nbrCores, noInteract=True)
+        print(ti.time()-start)
 
-        histogram = signal.convolve(histogram, win, mode='same') / sum(win)
-        histogram_not = signal.convolve(histogram_not, winN, mode='same') / sum(win)
+    else:
+        for j,s in enumerate(sl):
+            # start = ti.time()
+            vth[i,j], skewness[i,j] = fitDistrib(ly, yStep, gj[s], p1[s], time[i], j, sub, check=check)
+            # print(ti.time()-start)
+            # print("")
 
-    bins = bins[:-1]
-    bins_not = bins_not[:-1]
 
-    #----------------------------------------------
-    #fit with macroparticles fulfilling the condition
-    #only fit thermal component
-    limitV = fitFactor * np.mean(p1)
-    filterThermal = (bins > limitV)
-    #fit the data
-    Famp, Findex, Fdrift  = curve_fit(gaussian,
-                                      bins[filterThermal],
-                                      histogram[filterThermal],
-                                      p0=[np.max(histogram[filterThermal]),
-                                          np.std(histogram[filterThermal]),
-                                          vInit],
-                                      maxfev=mf)[0]
-
-    maxw = Famp*np.exp(-0.5*Findex*(bins-Fdrift)**2)
-
-    #fit all the data
-    FAamp, FAindex, FAdrift  = curve_fit(gaussian,
-                                          bins,
-                                          histogram,
-                                          p0=[np.max(histogram),
-                                              np.std(histogram),
-                                              vInit],
-                                          maxfev=mf)[0]
-
-    Amaxw = FAamp*np.exp(-0.5*FAindex*(bins-FAdrift)**2)
-
-    #----------------------------------------------
-    #fit with the others
-    filterThermal_not = (bins_not > limitV)
-    #fit the data
-    FampN, FindexN, FdriftN  = curve_fit(gaussian,
-                                         bins_not[filterThermal_not],
-                                         histogram_not[filterThermal_not],
-                                         p0=[np.max(histogram_not[filterThermal_not]),
-                                             np.std(histogram_not[filterThermal_not]),
-                                             vInit],
-                                         maxfev=mf)[0]
-
-    maxwN = FampN*np.exp(-0.5*FindexN*(bins_not-FdriftN)**2)
-
-    #fit all the data
-    FAampN, FAindexN, FAdriftN  = curve_fit(gaussian,
-                                            bins_not,
-                                            histogram_not,
-                                            p0=[np.max(histogram_not),
-                                                np.std(histogram_not),
-                                                vInit],
-                                            maxfev=mf)[0]
-
-    AmaxwN = FAampN*np.exp(-0.5*FAindexN*(bins_not-FAdriftN)**2)
-
-    #----------------------------------------------
-    T[i]   = o.rqm[o.sIndex(species)]/Findex    #in filaments, only maxwellian part
-    # TA[i]  = Ti                                 #in filaments, from whole distribution
-    TA[i] = o.rqm[o.sIndex(species)]/FAindex
-    TN[i]  = o.rqm[o.sIndex(species)]/FindexN   #outside filaments, only maxwellian part
-    # TAN[i] = TiN                                #outside filaments, from whole distribution
-    TAN[i] = o.rqm[o.sIndex(species)]/FAindexN
-
-    #----------------------------------------------
-    if show:
-        #plot
-        l1 = sub1.axvline(limitV,color="gray",linestyle="--",linewidth=0.7)
-
-        l2 = sub1.plot(bins,histogram,color="r")
-        l4 = sub1.plot(bins,Amaxw,color="gray",linestyle="--")
-        l3 = sub1.plot(bins,maxw,color="k")
-
-        l5 = sub1.fill_between(bins,histogram,maxw,color="grey",alpha=0.5)
-
-        if i==0: sub1.legend(loc='upper left')
-        sub1.set_title(r"$t={t}\ [\Omega_0^{{-1}}]$".format(t=round(time[i],1)))
-
-        plt.pause(1e-9)
-        plt.savefig(plotPath+ "/plot-{i}-time-{t}.png".format(i=i,t=time[i]),dpi="figure")
-        sub1.lines.remove(l1)
-        sub1.lines.remove(l2[0])
-        sub1.lines.remove(l3[0])
-        sub1.lines.remove(l4[0])
-        l5.remove()
-
-if show: plt.close()
 
 #----------------------------------------------
-fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
+#dump data to disk
 
-sub1.axhline(1,color="gray",linestyle="--",linewidth=0.7)
-# sub1.set_ylim(1,1.8)
-sub1.plot(time,TA/T,color="b")
-sub1.plot(time,TAN/TN,color="r")
-
-ratio = TA/T / (TAN/TN)
-sub1.plot(time,ratio,color="k")
-"""
+if not check:
+    o.writeHDF5(skewness, "skew")
+    o.writeHDF5(vth, "vth")
