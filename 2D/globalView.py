@@ -19,7 +19,7 @@ params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 1,
         'legend.borderpad' : 0.1,'legend.labelspacing' : 0.1, 'axes.linewidth' : 1,
         'figure.autolayout': True, 'text.usetex': True}
 plt.rcParams.update(params)
-# plt.close("all")
+plt.close("all")
 
 #----------------------------------------------
 run  ="CS2DrmhrTrack"
@@ -28,40 +28,41 @@ o = osiris.Osiris(run,spNorm="iL")
 st = slice(None,None,1)
 time = o.getTimeAxis()[st]
 
+mu = o.rqm[o.sIndex("iL")]
 #----------------------------------------------
 
 # kin_el = o.getEnergyIntegr(time, qty="kin", species="eL")
 # kin_er = o.getEnergyIntegr(time, qty="kin", species="eR")
 # kin_il = o.getEnergyIntegr(time, qty="kin", species="iL")
 # kin_ir = o.getEnergyIntegr(time, qty="kin", species="iR")
+av = (1,2)
+Kin_UiL = np.mean(
+                    (np.sqrt(
+                        1+o.getUfluid(time, "iL", "x")**2+
+                          o.getUfluid(time, "iL", "y")**2+
+                          o.getUfluid(time, "iL", "z")**2)-1
+                    )*mu,axis=av)
 
-UiL = o.getUfluid(time, "iL", "x",av=(1,2))
-# UiR = np.mean(o.getUfluid(time, "iR", "x"),axis=(1,2))
+Kin_UeL = np.mean(
+                    (np.sqrt(
+                        1+o.getUfluid(time, "eL", "x")**2+
+                          o.getUfluid(time, "eL", "y")**2+
+                          o.getUfluid(time, "eL", "z")**2)-1
+                    )*mu,axis=av)
 
-# viR = np.mean(o.getVclassical(time, "iL", "x"),axis=(1,2))
 
-UeL = o.getUfluid(time, "eL", "x",av=(1,2))
-# UeR = np.mean(o.getUfluid(time, "eR", "x"),axis=(1,2))
-
-TiLx = np.mean(o.getUth(time, "iL", "x")**2,axis=(1,2)) * o.rqm[o.sIndex("iL")]
+TiLx = np.mean(o.getUth(time, "iL", "x")**2,axis=av) * mu
 # TiRx = np.mean(o.getUth(time, "iR", "x")**2,axis=(1,2)) * o.getRatioQM("iR")
 
-TeLx = np.mean(o.getUth(time, "eL", "x")**2,axis=(1,2))
+TeLx = np.mean(o.getUth(time, "eL", "x")**2,axis=av)
 # TeRx = np.mean(o.getUth(time, "eR", "x")**2,axis=(1,2))
 
-TiLy = np.mean(o.getUth(time, "iL", "y")**2,axis=(1,2)) * o.rqm[o.sIndex("iL")]
+TiLy = np.mean(o.getUth(time, "iL", "y")**2,axis=av) * mu
 # TiRy = np.mean(o.getUth(time, "iR", "y")**2,axis=(1,2)) * o.getRatioQM("iR")
 
-TeLy = np.mean(o.getUth(time, "eL", "y")**2,axis=(1,2))
+TeLy = np.mean(o.getUth(time, "eL", "y")**2,axis=av)
 # TeRy = np.mean(o.getUth(time, "eR", "y")**2,axis=(1,2))
 
-# normB = np.mean(o.getB(time,"x")**2+
-#                 o.getB(time,"y")**2+
-#                 o.getB(time,"z")**2,axis=(1,2))/2.
-
-# normE = np.mean(o.getE(time,"x")**2+
-#                 o.getE(time,"y")**2+
-#                 o.getE(time,"z")**2,axis=(1,2))/2.
 
 Ex,Ey,Ez = o.getEnergyIntegr(time, "E")
 Bx,By,Bz = o.getEnergyIntegr(time, "B")
@@ -100,10 +101,10 @@ sub1.semilogy(time,Ex,color="g",linestyle="--",label=r"$\mathcal{E}_{Ex}$")
 sub1.semilogy(time,Ey,color="cyan",linestyle="--",label=r"$\mathcal{E}_{Ey}$")
 # sub2.semilogy(time,normE,color="g",linestyle="--",label=r"$E$")
 
-sub1.semilogy(time,UiL,color="b",label=r"$U_{iL|x}$")
+sub1.semilogy(time,Kin_UiL,color="b",label=r"$\mathcal{E}_{kin,iL|x}$")
 # sub1.semilogy(time,np.abs(UiR),color="k",linestyle="--",label=r"$U_{iR}$")
 
-sub1.semilogy(time,UeL,color="b",linestyle="--",label=r"$U_{eL|x}$")
+sub1.semilogy(time,Kin_UeL,color="b",linestyle="--",label=r"$\mathcal{E}_{kin,eL|x}$")
 # sub2.semilogy(time,np.abs(UeR),color="k",linestyle="--",label=r"$U_{eR}$")
 
 sub1.semilogy(time,TiLx,color="orange",label=r"$T_{iL|x}$")
@@ -119,7 +120,7 @@ sub1.semilogy(time,TeLy,color="r",linestyle="--",label=r"$T_{eL|y}$")
 # sub2.semilogy(time,TeRy,color="r",linestyle="--",label=r"$T_{eRy}$")
 
 sub1.set_xlim(time[0],time[-1])
-sub1.set_ylim(1e-3,3e2)
+sub1.set_ylim(1e-4,3e2)
 
 sub1.set_xlabel(r"$t\ [\omega_{pi}^{-1}]$")
 # sub2.set_xlabel(r"$t\ [\omega_{pi}^{-1}]$")
