@@ -99,23 +99,23 @@ eps=1e-5
 # rZ = (o.getUth(time, "eL", "z") / (o.getUth(time, "iL", "z") * mu))**2
 
 # TeX = (o.getUth(time, "eL", "x"))**2
-TiX = (o.getUth(time, "iL", "x") )**2 * mu
+# TiX = (o.getUth(time, "iL", "x") )**2 * mu
 
 # TeY = (o.getUth(time, "eL", "y"))**2
-# TiY = (o.getUth(time, "iL", "y") * mu)**2
+TiY = (o.getUth(time, "iL", "y") )**2* mu
 
 # TeZ = (o.getUth(time, "eL", "z"))**2
-# TiZ = (o.getUth(time, "iL", "z") * mu)**2
+# TiZ = (o.getUth(time, "iL", "z") )**2* mu
 
 #----------------------------------------------
 stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
 extent=(min(x),max(x),min(y),max(y))
 
 #----------------------------------------------
-path = o.path+"/plots/TiX"
+path = o.path+"/plots/TiY"
 o.setup_dir(path)
 
-it = ((TiX  [s[0]:s[1]],
+it = ((TiY  [s[0]:s[1]],
         time        [s[0]:s[1]],
         extent, s[0], path) for s in stages)
 

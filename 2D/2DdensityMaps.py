@@ -92,13 +92,13 @@ x    = o.getAxis("x")[sx]
 y    = o.getAxis("y")[sy]
 time = o.getTimeAxis()[st]
 
-species="eL"
+species="iL"
 pChargeSign = o.rqm[o.sIndex(species)]/np.abs(o.rqm[o.sIndex(species)])
 n0 = o.n0[o.sIndex(species)]
 
 #----------------------------------------------
 eps = 1e-7   #avoid 0
-niL = o.getCharge(time, "eL",sl=sl) / n0 * pChargeSign
+niL = o.getCharge(time, species,sl=sl) / n0 * pChargeSign
 
 
 #----------------------------------------------
@@ -106,7 +106,7 @@ stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
 extent=(min(x),max(x),min(y),max(y))
 
 #----------------------------------------------
-path = o.path+"/plots/neL"
+path = o.path+"/plots/niL"
 o.setup_dir(path)
 
 it = ((niL [s[0]:s[1]],

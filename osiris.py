@@ -662,11 +662,12 @@ class Osiris:
     #--------------------------------------------------------------
     def crossProduct(self, Ax, Ay, Az, Bx, By, Bz):
 
-        cx = Ay*Bz - Az*By
-        cy = Az*Bx - Ax*Bz
-        cz = Ax*By - Ay*Bx
+        return Ay*Bz-Az*By, Az*Bx-Ax*Bz, Ax*By-Ay*Bx
 
-        return cx, cy, cz
+    #--------------------------------------------------------------
+    def dotProduct(self, Ax, Ay, Az, Bx, By, Bz):
+
+        return Ax*Bx + Ay*By + Az*Bz
 
 
     #--------------------------------------------------------------
@@ -799,8 +800,8 @@ class Osiris:
                 stackedTags = np.vstack((stackedTags, tag[i][keep]))
 
         #sort the tags
-        stackedTags=sorted(stackedTags, key=operator.itemgetter(0, 1))[::step]
-        # stackedTags = stackedTags[::step]
+        # stackedTags=sorted(stackedTags, key=operator.itemgetter(0, 1))[::step]
+        stackedTags = stackedTags[::step]
         print("Species",species+":",len(stackedTags),"tags")
 
         with open(outPath,'w') as f:
@@ -861,12 +862,10 @@ class Osiris:
             with h5py.File(filePath, 'w') as hf:
                 hf.create_dataset(key, data=data)
 
-        else:
-            #load ordered data, much faster
-            with h5py.File(filePath,"r") as f:
-                data = f[key][sl]
 
-        return data
+        #load ordered data, much faster
+        with h5py.File(filePath,"r") as f:
+            return f[key][sl]
 
 
 

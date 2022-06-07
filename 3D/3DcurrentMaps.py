@@ -16,8 +16,6 @@ from matplotlib.artist import Artist
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.colors import LogNorm
 
-import parallelFunctions as pf
-
 #----------------------------------------------
 params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 2,
         'lines.markersize' : 3, 'xtick.labelsize' : 9, 'ytick.labelsize' : 9,
@@ -28,7 +26,7 @@ plt.rcParams.update(params)
 # plt.close("all")
 
 #----------------------------------------------
-run  ="CS3D"
+run  ="CS3Drmhr"
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
@@ -39,7 +37,7 @@ sl = (0,sy,sz)
 x     = o.getAxis("x")[sx]
 y     = o.getAxis("y")[sy]
 z     = o.getAxis("z")[sz]
-extent=(min(x),max(x),min(y),max(y))
+extent=(min(y),max(y),min(z),max(z))
 
 st = slice(None)
 time = o.getTimeAxis()[st]

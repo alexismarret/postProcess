@@ -86,8 +86,12 @@ sub1.set_ylim(-1,1)
 
 dx = x[1]-x[0]
 
-sub1.plot(x,np.gradient(Ex,dx)/5,color="b")
-sub1.plot(x,np.gradient(niL,dx)/10,  color="k")
-sub1.plot(x,np.gradient(TiLx,dx)/100, color="g")
+sub1.plot(x,np.gradient(Ex,dx)/5,color="b",label=r"$\partial_x E_x$")
+sub1.plot(x,np.gradient(niL,dx)/10,  color="k",label=r"$\partial_x n_{i}$")
+sub1.plot(x,np.gradient(TiLx,dx)/100, color="g",label=r"$\partial_x T_{i}$")
 
 sub1.fill_between(x,np.gradient(niL,dx)/10,np.gradient(TiLx,dx)/100,color="silver")
+
+sub1.legend(frameon=False)
+
+sub1.set_xlabel(r"$x\ [c/\omega_{pe}]$")

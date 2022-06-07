@@ -13,9 +13,10 @@ from scipy.integrate import cumulative_trapezoid
 import matplotlib.pyplot as plt
 # from matplotlib.gridspec import GridSpec
 # import trackParticles as tr
+import time as ti
 
 #----------------------------------------------
-params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 0.9,
+params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 1,
         'lines.markersize' : 3, 'xtick.labelsize' : 9, 'ytick.labelsize' : 9,
         'font.size': 9,'legend.fontsize': 9, 'legend.handlelength' : 1.5,
         'legend.borderpad' : 0.1,'legend.labelspacing' : 0.1, 'axes.linewidth' : 1,
@@ -24,13 +25,12 @@ plt.rcParams.update(params)
 plt.close("all")
 
 #----------------------------------------------
-# run  ="CS3Dtrack"
-# run ="CS3Dtrack"
-run="testTrackSingle"
+run ="CS3Dtrack"
+# run="testTrackSingle"
 spNorm = "eL"
 o = osiris.Osiris(run,spNorm=spNorm)
 
-species ="eL"
+species ="iL"
 
 #----------------------------------------------
 #index of macroparticle
@@ -44,106 +44,176 @@ mu      = o.rqm[o.sIndex(species)]
 pCharge = mu / np.abs(mu)
 
 #macroparticle, iteration
-ene = o.getTrackData(species, "ene",sl=sl)[:,:-1] * np.abs(mu)
-t   = o.getTrackData(species, "t",  sl=sl)[:,:-1]
-p1  = o.getTrackData(species, "p1", sl=sl)[:,1:]
-p2  = o.getTrackData(species, "p2", sl=sl)[:,1:]
-p3  = o.getTrackData(species, "p3", sl=sl)[:,1:]
-e1  = o.getTrackData(species, "E1", sl=sl)[:,:-1]
-e2  = o.getTrackData(species, "E2", sl=sl)[:,:-1]
-e3  = o.getTrackData(species, "E3", sl=sl)[:,:-1]
+ene = o.getTrackData(species, "ene",sl=sl) * np.abs(mu)
+t   = o.getTrackData(species, "t",  sl=sl)
+p1  = o.getTrackData(species, "p1", sl=sl)
+p2  = o.getTrackData(species, "p2", sl=sl)
+p3  = o.getTrackData(species, "p3", sl=sl)
+e1  = o.getTrackData(species, "E1", sl=sl)
+e2  = o.getTrackData(species, "E2", sl=sl)
+e3  = o.getTrackData(species, "E3", sl=sl)
+b1  = o.getTrackData(species, "B1", sl=sl)
+b2  = o.getTrackData(species, "B2", sl=sl)
+b3  = o.getTrackData(species, "B3", sl=sl)
 
-x = o.getAxis("x")
-y = o.getAxis("y")
-z = o.getAxis("z")
-
+N = len(t[0])
 dt = (t[0,1]-t[0,0])
 
-imax = np.where(ene[:,-1]==np.min(ene[:,-1]))[0][0]  #index of least energetic particle
+imax = np.where(ene[:,-1]==np.max(ene[:,-1]))[0][0]  #index of least energetic particle
 
-#get velocity
-lorentz = np.sqrt(1+p1**2+p2**2+p3**2)
-p1 /= lorentz
-p2 /= lorentz
-p3 /= lorentz
+#in osiris: track data in file os-spec-diagnostics.f03 line 1886
+#also in os-spec-tracks.f03 line 829
+#os-vdf-interpolate.f90 line 700
 
 #----------------------------------------------
-work1 = pCharge * e1*p1
-work2 = pCharge * e2*p2
-work3 = pCharge * e3*p3
-work = work1+work2+work3
+E = np.array([e1,e2,e3]).T
+B = np.array([b1,b2,b3]).T
+p = np.array([p1,p2,p3]).T
 
-intWork1 = cumulative_trapezoid(work1,t,axis=-1,initial=0)
-intWork2 = cumulative_trapezoid(work2,t,axis=-1,initial=0)
-intWork3 = cumulative_trapezoid(work3,t,axis=-1,initial=0)
+t = t[0]
+ene = ene[0]
+E = E[:,0]
+B = B[:,0]
+p = p[:,0]
 
-intWork = intWork1 + intWork2 + intWork3
+lorentz = np.sqrt(1+p1**2+p2**2+p3**2)[0]
+v = p/lorentz[:,None]
 
+#----------------------------------------------
+def cross(a,b):
+    return np.array([a[:,1]*b[:,2]-a[:,2]*b[:,1],
+                    -a[:,0]*b[:,2]+a[:,2]*b[:,0],
+                     a[:,0]*b[:,1]-a[:,1]*b[:,0]]).T
+
+def getEnergy(p,mu):
+    return (np.sqrt(1+np.sum(p**2,axis=1))-1) * mu
+
+#----------------------------------------------
+# Forward Euler
+pnext_euler = p+pCharge*(E+cross(v,B))*dt
+
+#----------------------------------------------
+# Boris push
+
+#half electric push
+Epush = pCharge*E*dt/2
+pminus = p + Epush
+
+#rotation
+tvec = pCharge*B*dt/(2*lorentz[:,None])
+s = 2*tvec/(1+np.sum(tvec**2,axis=1)[:,None])
+pprime = pminus+cross(pminus,tvec)
+pplus = pminus+cross(pprime,s)
+
+#second half electric push
+pnext_boris = pplus+Epush
+
+#----------------------------------------------
+# Now look at the energy change by comparing the energy change at each step with the energy change in the simulation
+dEdt_sim = (ene[1:]-ene[:-1])/dt  #energy gained from the simulation data
+eneBoris = getEnergy(pnext_boris, mu)
+eneEuler = getEnergy(pnext_euler, mu)
+
+# W_boris = (np.sqrt(1+np.sum(pnext_boris[1:]**2,axis=1))-1 - ene[1:])/dt
+# W_euler = (np.sqrt(1+np.sum(pnext_euler[1:]**2,axis=1))-1 - ene[1:])/dt
+# dEdt_boris = (np.sqrt(1+np.sum(pnext_boris[1:]**2,axis=1))-1 - (np.sqrt(1+np.sum(pnext_boris[:-1]**2,axis=1))-1))/dt*mu
+# dEdt_euler = (np.sqrt(1+np.sum(pnext_euler[1:]**2,axis=1))-1 - (np.sqrt(1+np.sum(pnext_euler[:-1]**2,axis=1))-1))/dt*mu
+dEdt_boris = (eneBoris[1:] - eneBoris[:-1])/dt
+dEdt_euler = (eneEuler[1:] - eneEuler[:-1])/dt
+
+WorkE = np.sum(E*v,axis=1)[:-1] * pCharge
+
+#----------------------------------------------
+energy_initial     = getEnergy(p, mu)            #energy before push == ene array
+energy_first_push  = getEnergy(pminus, mu)       #energy after first push
+energy_rot         = getEnergy(pplus, mu)        #energy after rotation
+energy_second_push = getEnergy(pnext_boris, mu)  #energy after second push
+energy_gain = energy_second_push-energy_initial                         #energy gain from initial value
+
+lorentz_p = np.sqrt(1+np.sum(p**2,    axis=1))
+lorentz_pplus = np.sqrt(1+np.sum(pplus**2,axis=1))
+workFP = np.sum(E*dt/2*(p     / lorentz_p[:,None]),    axis=1) * pCharge   #energy gain via E in first push
+workSP = np.sum(E*dt/2*(pplus / lorentz_pplus[:,None]),axis=1) * pCharge  #energy gain via E in second push
+
+workE = workFP+workSP  #total energy gain via E, obtained from boris velocity, slightly different from sim velocity
+
+#----------------------------------------------
+plt.figure(figsize=(4.1,2.8),dpi=300)
+
+#first and second push give slightly different energies, since v varies every half time step
+#because of boris acceleration in two steps
+plt.plot(t,(energy_first_push-energy_initial),color="b")
+plt.plot(t,(energy_rot-energy_first_push),color="k")
+plt.plot(t,(energy_second_push-energy_first_push),color="r")
+
+plt.plot(t,(energy_gain),color="g",linestyle="-")
+plt.plot(t[1:]-dt,dEdt_sim*dt)
+
+plt.plot(t,workFP,color="cyan",linestyle="--")
+plt.plot(t,workSP,color="k",linestyle="--")
+plt.plot(t,workE,color="orange",linestyle="--")
+
+#----------------------------------------------
+#now get fraction of energy gain due to each component
+#do not integrate work itself, since accumulation of error makes the result wrong
+workEx = E[:,0] * (p[:,0]/lorentz_p + pplus[:,0]/lorentz_pplus) * pCharge*dt/2
+workEy = E[:,1] * (p[:,1]/lorentz_p + pplus[:,1]/lorentz_pplus) * pCharge*dt/2
+workEz = E[:,2] * (p[:,2]/lorentz_p + pplus[:,2]/lorentz_pplus) * pCharge*dt/2
 """
 #----------------------------------------------
-fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
+plt.figure(figsize=(4.1,2.8),dpi=300)
 
+plt.plot(t,workEx,color="r")
+plt.plot(t,workEy,color="g")
+plt.plot(t,workEz,color="b")
 
-# sub1.plot(t[imax],ene[imax],color="r")
-# sub1.plot(t[imax], intWork1[imax] ,color="b")
-# sub1.plot(t[imax], intWork2[imax] ,color="orange")
-# sub1.plot(t[imax], intWork3[imax] ,color="g")
-# sub1.plot(t[imax], intWork[imax] + ene[imax,0],color="k",linestyle="dotted")
-
-# sub1.plot(t[imax,:-2],a1[imax],color="r",linestyle="dotted")
-# sub1.plot(t[imax,:-2],a2[imax],color="r",linestyle="dotted")
-# sub1.plot(t[imax,:-2],a3[imax],color="r",linestyle="dotted")
-# sub1.plot(t[imax,:-2],a[imax]+ ene[imax,0],color="r",linestyle="dotted")
-
-diff1 = (intWork[imax]+ene[imax,0] - ene[imax]) / ene[imax,0]
-sub1.plot( diff1, color="orange",linestyle="-")
-
+plt.plot(t,workE,color="k")
+plt.plot(t,workEx+workEy+workEz,color="cyan",linestyle="--")
 """
 
 #----------------------------------------------
-fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
+plt.figure(figsize=(4.1,2.8),dpi=300)
 
-sub1.axhline(0,color="gray",linestyle="--",linewidth=0.7)
-
-
-d_ene_dt = (ene[:,1:] - ene[:,:-1])/dt
-d_ene_dt_np = np.gradient(ene,dt,axis=-1)
-
-sub1.plot(t[imax,:-1],d_ene_dt[imax],color="k",label=r"$d_t\ ene$",marker="x")
-
-#shifted by dt/2 because of derivative, value is in between two data points
-# sub1.plot(t[imax]-dt/2,d_ene_dt_np[imax],color="orange",label=r"$d_t\ ene$",marker="x")
-
-# sub1.plot(t[imax],ene[imax]-ene[imax,0],color="b",label=r"$ene$",marker="x")
-
-sub1.plot(t[imax],work[imax],color="orange",label=r"$W$")
-sub1.legend(frameon=False)
+plt.plot(t,np.cumsum(workEx))
+plt.plot(t,np.cumsum(workEy))
+plt.plot(t,np.cumsum(workEz))
 
 
 #----------------------------------------------
-fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
+plt.figure(figsize=(4.1,2.8),dpi=300)
 
-sub1.plot(t[imax],ene[imax]-ene[imax,0],color="k")
+plt.plot(t[1:]-dt/2,dEdt_sim,label='sim',linestyle="-")
+plt.plot(t[1:]-dt/2,WorkE,label=r'$\mathbf{v} \cdot \mathbf{E}$',linestyle="-")
+plt.plot(t[1:]+dt/2,dEdt_euler,label='Forward Euler',linestyle="-")
+plt.plot(t[1:]+dt/2,dEdt_boris,label='Boris',linestyle="--")
+
+plt.legend()
+plt.xlabel(r'$t$')
+plt.ylabel(r'Work/dt')
+plt.show()
+
+params = [
+    [dEdt_sim,'sim','-'],
+    [WorkE,r'$\mathbf{v} \cdot \mathbf{E}$','-'],
+    [dEdt_euler,'Forward Euler','-'],
+    [dEdt_boris,'Boris','--'],
+]
+
+plt.figure(figsize=(4.1,2.8),dpi=300)
+for dat,label,ls in params:
+    plt.plot(t[1:],np.cumsum(dat)*dt+ene[0],ls,label=label)
+plt.legend()
+plt.xlabel(r'$t$')
+plt.ylabel(r'Energy')
+plt.show()
 
 
-# def integral(data,delta):
-
-#     return delta*np.cumsum(data[:,:-1],axis=-1)
-
-# int_dt_ene = integral(d_ene_dt_np,dt)
-# int_work   = integral(work,dt)
-
-# sub1.plot(t[imax,1:],int_dt_ene[imax],color="k")
-# sub1.plot(t[imax,1:],int_work[imax],color="orange")
-sub1.plot(t[imax],intWork[imax],color="orange")
-
-
-
-
-
-
-
-
-
+plt.figure(figsize=(4.1,2.8),dpi=300)
+for dat,label,ls in params:
+    plt.semilogy(t[1:],np.abs(np.cumsum(dat)*dt+ene[0] - ene[1:])/ene[1:],ls,label=label)
+plt.legend()
+plt.xlabel(r'$t$')
+plt.ylabel(r'Energy error')
+plt.show()
 
 

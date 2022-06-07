@@ -94,7 +94,7 @@ def sliceGrid(g, l, step):
 def fitDistrib(ly, yStep, gj, p, time=None, j=None, sub=None, check=False):
 
     mf = 1000  #max number of iterations for fit
-    minN = 5   #min number of macroparticles required to attempt postprocessing
+    minN = 0   #min number of macroparticles required to attempt postprocessing
     nbins = 70  #number of bins of histogram
     showGuess = False
     showLim =False
@@ -206,7 +206,7 @@ def fitDistrib(ly, yStep, gj, p, time=None, j=None, sub=None, check=False):
 #----------------------------------------------
 #----------------------------------------------
 # run  ="CS2DrmhrTrack"
-run = "CS2DrmhrRawLall"
+run = "CS2DrmhrTrack"
 o = osiris.Osiris(run,spNorm="iL")
 
 species = "iL"
@@ -377,4 +377,4 @@ for i in range(len(time)):
 
 if not check:
     o.writeHDF5(skewness, "skew")
-    o.writeHDF5(vth, "vth")
+    # o.writeHDF5(vth, "vth")

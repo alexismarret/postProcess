@@ -1,75 +1,42 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Tue May 24 18:24:39 2022
+Created on Mon Jun  6 11:29:25 2022
 
 @author: alexis
 """
-
 
 #----------------------------------------------
 import osiris
 import numpy as np
 import matplotlib.pyplot as plt
-import parallelFunctions as pf
-from matplotlib.colors import LogNorm
+
 from matplotlib.artist import Artist
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from matplotlib.colors import LogNorm
+
+import parallelFunctions as pf
 
 #----------------------------------------------
-params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 1,
+params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 2,
         'lines.markersize' : 3, 'xtick.labelsize' : 9, 'ytick.labelsize' : 9,
         'font.size': 9,'legend.fontsize': 9, 'legend.handlelength' : 1.5,
         'legend.borderpad' : 0.1,'legend.labelspacing' : 0.1, 'axes.linewidth' : 1,
-        'figure.autolayout': True, 'text.usetex': True}
+        'text.usetex': True}
 plt.rcParams.update(params)
 # plt.close("all")
-
-#----------------------------------------------
-# run  ="CS2DrmhrTrack"
-run = "CS2DrmhrTrack"
-o = osiris.Osiris(run,spNorm="iL")
-
-sx = slice(None,None,1)
-sy = slice(None,None,1)
-sl=(sx,sy)
-st = slice(None,None,1)
-x    = o.getAxis("x")[sx]
-y    = o.getAxis("y")[sx]
-time = o.getTimeAxis()[st]
-
-#----------------------------------------------
-def cor(a,b):
-
-    #naive implementation, might have issue because of machine precision
-    # c = np.mean((a - np.mean(a,axis=(1,2))[...,None,None]) *
-    #             (b - np.mean(b,axis=(1,2))[...,None,None]),
-    #             axis=(1,2))
-
-    #shifted implementation, more robust
-    v = 1  #grid point to use, arbitrary value
-    kx = a[:,v,v][:,None,None]
-    ky = b[:,v,v][:,None,None]
-
-    ax=(1,2)
-    c = ((np.nanmean((a-kx) * (b-ky),axis=ax) -
-         np.nanmean(a-kx,axis=ax) * np.nanmean(b-ky,axis=ax)) /
-         (np.nanstd((a),axis=ax)*np.nanstd((b),axis=ax)))
-
-    return c
 
 #----------------------------------------------
 def plot2D(data,time,extent,ind,figPath):
 
     fig, (sub1) = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
-    # fig.subplots_adjust(bottom=0.09)
+    # fig.subplots_adjust(bottom=0.28)
 
     im=sub1.imshow(data[0,...].T,
                    extent=extent,origin="lower",
-                   aspect=1,
-                   cmap="jet",
-                    # norm=LogNorm(vmin = 1e0, vmax = 1e1),
-                    vmin = 0, vmax = 5,
+                    aspect=1,
+                   cmap="bwr",
+                   vmin = -1, vmax = 1,
                    interpolation="None")
 
     divider = make_axes_locatable(sub1)
@@ -83,7 +50,7 @@ def plot2D(data,time,extent,ind,figPath):
     sub1.set_ylabel(r'$y\ [c/\omega_{pi}]$')
 
     sub1.text(1, 1.05,
-              r"$Skew$",
+              r"$U_{eL}\ [c]$",
               horizontalalignment='right',
               verticalalignment='bottom',
               transform=sub1.transAxes)
@@ -112,40 +79,44 @@ def plot2D(data,time,extent,ind,figPath):
 
     return
 
+#----------------------------------------------
+run  ="CS2DrmhrTrack"
+o = osiris.Osiris(run,spNorm="iL")
+
+sx = slice(0,None,1)
+sy = slice(0,None,1)
+st = slice(None,None,1)
+sl=(sx,sy)
+x    = o.getAxis("x")[sx]
+y    = o.getAxis("y")[sy]
+time = o.getTimeAxis()[st]
 
 #----------------------------------------------
-eps = 1e-8
-skew = o.getNewData(time, "skew",sl=sl)
-niL = o.getCharge(time, "iL",sl=sl)
-TiL = o.getUth(time, "iL", "x",sl=sl) **2*o.rqm[o.sIndex("iL")]
+Ex = o.getE(time,"x")
+Ey = o.getE(time,"y")
+Ez = o.getE(time,"z")
 
-cor_sT    = cor(skew, TiL)
-cor_sn    = cor(skew, niL)
+Bx = o.getB(time,"x")
+By = o.getB(time,"y")
+Bz = o.getB(time,"z")
 
-extent=(min(x),max(x),min(y),max(y))
+
+ExB_B2_x = o.crossProduct(Ex,Ey,Ez,
+                            Bx,By,Bz)[0] / (Bx**2+By**2+Bz**2)
+
+# EdotB = o.dotProduct(Ex, Ey, Ez, Bx, By, Bz)
+
+#----------------------------------------------
 stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
+extent=(min(x),max(x),min(y),max(y))
 
-"""
 #----------------------------------------------
-path = o.path+"/plots/skewness"
+path = o.path+"/plots/ExB"
 o.setup_dir(path)
 
-it = ((skew  [s[0]:s[1]],
-        time        [s[0]:s[1]],
+it = ((ExB_B2_x [s[0]:s[1]],
+        time[s[0]:s[1]],
         extent, s[0], path) for s in stages)
 
 pf.parallel(plot2D, it, o.nbrCores, noInteract=True)
-"""
 
-#----------------------------------------------
-fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
-
-sub1.axhline(0,linestyle="--",color="gray",linewidth=0.7)
-sub1.plot(time,cor_sT,color="k",label=r"$Cor(skew(x,y),T(x,y))$")
-sub1.plot(time,cor_sn,color="orange",label=r"$Cor(skew(x,y),n(x,y))$")
-
-sub1.set_xlabel(r"$t\ [\omega_{pi}^{-1}]$")
-
-# sub1.set_ylim(-0.0015,0.0015)
-sub1.axhline(0,color="gray",linestyle="--",linewidth=0.7)
-sub1.legend(frameon=False)

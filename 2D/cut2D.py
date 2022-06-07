@@ -20,7 +20,7 @@ import parallelFunctions as pf
 from scipy import signal
 
 #----------------------------------------------
-params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 2,
+params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 1,
         'lines.markersize' : 3, 'xtick.labelsize' : 9, 'ytick.labelsize' : 9,
         'font.size': 9,'legend.fontsize': 9, 'legend.handlelength' : 1.5,
         'legend.borderpad' : 0.1,'legend.labelspacing' : 0.1, 'axes.linewidth' : 1,

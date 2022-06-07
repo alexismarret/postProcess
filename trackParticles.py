@@ -36,11 +36,11 @@ def readUnorderedTrackData(path, species, qty):
 
     with h5py.File(path+'/MS/TRACKS/'+species+'-tracks.h5', 'r') as tracks:
 
-        labels = [s.decode() for s in tracks.attrs['QUANTS']][1:] # Get quant labels as regular (non-binary) strings
+        labels = [s.decode() for s in tracks.attrs['QUANTS']]  # Get quant labels as regular (non-binary) strings
         ntracks = tracks.attrs['NTRACKS'][0]  #number of individual macroparticles tracked
         itermap = tracks['itermap'][:] # Get itermap as a numeric array
 
-        data = tracks['data'][:,labels.index(qty)] # Get the data as a numeric array
+        data = tracks['data'][:,labels.index(qty)-1] # Get the data as a numeric array
 
     data = reorderTableNumba(data, itermap, ntracks)
 

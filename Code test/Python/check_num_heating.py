@@ -32,7 +32,8 @@ plt.close("all")
 #         "TestRes/uniform8",
 #         "TestRes/uniform16")
 
-run =("CS3Dtrack",)
+# run =("CS3Dtrack",)
+run = ("testTrackSingle",)
 
 #----------------------------------------------
 fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)

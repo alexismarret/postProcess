@@ -44,14 +44,14 @@ def cor(a,b):
     ky = b[:,v,v][:,None,None]
 
     ax=(1,2)
-    c = ((np.mean((a-kx) * (b-ky),axis=ax) -
-         np.mean(a-kx,axis=ax) * np.mean(b-ky,axis=ax)) /
-         (np.std((a),axis=ax)*np.std((b),axis=ax)))
+    c = ((np.nanmean((a-kx) * (b-ky),axis=ax) -
+         np.nanmean(a-kx,axis=ax) * np.nanmean(b-ky,axis=ax)) /
+         (np.nanstd((a),axis=ax)*np.nanstd((b),axis=ax)))
 
     return c
 
 
-
+"""
 #----------------------------------------------
 cor_iL = cor(o.getUth(time,"iL","x")**2*o.rqm[o.sIndex("iL")],
               o.getCharge(time, "iL"))
@@ -65,26 +65,9 @@ cor_eL = cor(o.getUth(time,"eL","x")**2,
 cor_eR = cor(o.getUth(time,"eR","x")**2,
               o.getCharge(time,"eR") *-1)
 
-eps = 1e-6   #avoid /0
-ratio = np.mean(np.abs(o.getUfluid(time, "iL","y") /
-                       (o.getUfluid(time, "iL","x")+eps)),axis=(1,2))
-
-
-
-"""
-Ex =  np.abs(o.getE(time,"y"))
-cov_iL = cov(o.getUth(time,"iL","x")**2*o.getRatioQM("iL"),
-              Ex)
-
-cov_iR = cov(o.getUth(time,"iR","x")**2*o.getRatioQM("iR"),
-              Ex)
-
-cov_eL = cov(o.getUth(time,"eL","x")**2,
-              Ex)
-
-cov_eR = cov(o.getUth(time,"eR","x")**2,
-              Ex)
-"""
+# eps = 1e-6   #avoid /0
+# ratio = np.mean(np.abs(o.getUfluid(time, "iL","y") /
+#                        (o.getUfluid(time, "iL","x")+eps)),axis=(1,2))
 
 #----------------------------------------------
 fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
@@ -95,7 +78,7 @@ sub1.plot(time,cor_iR,color="b",label="iR")
 sub1.plot(time,cor_eL,color="g",label="eL")
 sub1.plot(time,cor_eR,color="orange",label="eR")
 
-sub1.plot(time,ratio,color="k",label="uy/ux")
+# sub1.plot(time,ratio,color="k",label="uy/ux")
 
 sub1.set_xlabel(r"$t\ [\omega_{pi}^{-1}]$")
 sub1.set_ylabel(r"$Cor(T(x,y),n(x,y))$")
@@ -105,4 +88,58 @@ sub1.axhline(0,color="gray",linestyle="--",linewidth=0.7)
 sub1.legend(frameon=False)
 
 plt.savefig(o.path+"/plots/correlation.png",dpi="figure")
+"""
+
+"""
+Ex = o.getE(time,"x")
+Ey = o.getE(time,"y")
+Ez = o.getE(time,"z")
+
+Bx = o.getB(time,"x")
+By = o.getB(time,"y")
+Bz = o.getB(time,"z")
+
+skew = o.getNewData(time, "skew")
+
+ExB_B2_x = o.crossProduct(Ex,Ey,Ez,
+                            Bx,By,Bz)[0] / (Bx**2+By**2+Bz**2)
+
+cor_exB_skew = cor(np.abs(ExB_B2_x, skew)
+
+#----------------------------------------------
+fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
+
+sub1.plot(time,cor_exB_skew,color="r",label="iL")
+
+sub1.set_xlabel(r"$t\ [\omega_{pi}^{-1}]$")
+sub1.set_ylabel(r"$Cor(T(x,y),n(x,y))$")
+
+# sub1.set_ylim(-0.0015,0.0015)
+sub1.axhline(0,color="gray",linestyle="--",linewidth=0.7)
+sub1.legend(frameon=False)
+
+plt.savefig(o.path+"/plots/correlationExB.png",dpi="figure")
+"""
+
+
+#----------------------------------------------
+skew = o.getNewData(time, "skew")
+cov_iL = cor(o.getUth(time,"iL","x")**2*o.rqm[o.sIndex("iL")],
+              skew)
+
+#----------------------------------------------
+fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
+
+sub1.plot(time,cov_iL ,color="r",label="iL")
+
+sub1.set_xlabel(r"$t\ [\omega_{pi}^{-1}]$")
+sub1.set_ylabel(r"$Cor(T(x,y),n(x,y))$")
+
+# sub1.set_ylim(-0.0015,0.0015)
+sub1.axhline(0,color="gray",linestyle="--",linewidth=0.7)
+sub1.legend(frameon=False)
+
+plt.savefig(o.path+"/plots/correlationSkewTi.png",dpi="figure")
+
+
 

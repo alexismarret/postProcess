@@ -15,7 +15,6 @@ from matplotlib.artist import Artist
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.colors import LogNorm
 
-import parallel_functions as pf
 
 #----------------------------------------------
 params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 2,
@@ -27,8 +26,9 @@ plt.rcParams.update(params)
 # plt.close("all")
 
 #----------------------------------------------
-run  ="CS3D"
+run  ="CS3Drmhr"
 o = osiris.Osiris(run,spNorm="iL")
+species ="iL"
 
 sx = slice(None,None,1)
 sy = slice(None,None,1)
@@ -42,22 +42,22 @@ extent=(min(x),max(x),min(y),max(y))
 
 st = slice(None)
 time = o.getTimeAxis()[st]
-mu = o.getRatioQM("iL")
+mu = o.rqm[o.sIndex(species)]
 
 #----------------------------------------------
-path = o.path+"/plots/niX"
+path = o.path+"/plots/niL"
 o.setup_dir(path)
 
 #----------------------------------------------
 fig, (sub1) = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
 
-data = o.getCharge(time[0], "iL",sl=sl)
+data = o.getCharge(time[0], species,sl=sl)
 
 im=sub1.imshow(data.T,
                extent=extent,origin="lower",
                aspect=1,
-               cmap="jet",
-               norm=LogNorm(vmin=1e-3,vmax=1e2),
+               cmap="bwr",
+               norm=LogNorm(vmin=1e-1,vmax=1e1),
                interpolation="None")
 
 divider = make_axes_locatable(sub1)
@@ -94,7 +94,7 @@ for i in range(len(time)):
                     verticalalignment='bottom',
                     transform=sub1.transAxes)
 
-    data = o.getCharge(time[i], "iL",sl=sl)
+    data = o.getCharge(time[i], species,sl=sl)
     im.set_array(data.T)
 
     plt.savefig(path+"/plot-{i}-time-{t}.png".format(i=i,t=time[i]),dpi="figure")
