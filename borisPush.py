@@ -41,17 +41,17 @@ def boris_relativistic(p, ef, bf,
     #pp     = p^+
     #pprime = p'
 
-    fac = charge*dt/(2*mass)
+    fac = charge/mass * dt/2.
 
     #get p_minus
-    pm = p +  fac*ef
+    pm = p + fac*ef
 
     #get p_prime
     tvec = fac / lorentz(pm)[...,None] * bf
     pprime = pm + cross(pm, tvec, it)
 
     #get p_plus
-    svec = tvec * 2/(1+tvec[0]**2+tvec[1]**2+tvec[2]**2)
+    svec = tvec * 2./(1+tvec[0]**2+tvec[1]**2+tvec[2]**2)
     pp = pm + cross(pprime, svec, it)
 
     #get next p
@@ -76,7 +76,7 @@ run ="CS3Dtrack"
 spNorm = "eL"
 o = osiris.Osiris(run,spNorm=spNorm)
 
-species ="eL"
+species ="iL"
 
 #----------------------------------------------
 #index of macroparticle
@@ -85,8 +85,7 @@ sTime = slice(None,None,1)
 sl = (sPart,sTime)
 
 #----------------------------------------------
-massNorm = np.abs(o.rqm[o.sIndex(spNorm)])
-mass = np.abs(o.rqm[o.sIndex(species)])
+mass   = np.abs (o.rqm[o.sIndex(species)])
 charge = np.sign(o.rqm[o.sIndex(species)])
 
 #macroparticle, iteration
@@ -113,53 +112,28 @@ p   = np.array([p1,p2,p3]).T
 energySim = energy(p, np.abs(mass))
 
 #----------------------------------------------
-#only integrate next time step
-borisP = np.zeros((N,3))
-borisP[0] = (p1[0],p2[0],p3[0])  #first value is initial condition (n-1/2 = -1/2)
+#only integrate next time step then come back to simulation data to integrate the next one
+p_boris = np.zeros((N,3))
+p_boris[0] = (p1[0],p2[0],p3[0])  #first value is initial condition (n-1/2 = -1/2)
+
 #pp is momentum after first push and magnetic field rotation, fist value is n=0, centered momentum
-borisP[1:], pp  = boris_relativistic(p[:-1], ef[:-1], bf[:-1],
-                                     dt, charge, mass, it=False)
-energyBoris = energy(borisP, np.abs(mass))
+p_boris[1:], pp  = boris_relativistic(p[:-1], ef[:-1], bf[:-1],
+                                      dt, charge, mass, it=False)
+energyBoris = energy(p_boris, mass)   #energy after the two half pushes
 
 #----------------------------------------------
-#integrate whole trajectory from initial conditions
-borisPReIntegrated = np.zeros((N,3))
-borisPReIntegrated[0] = (p1[0],p2[0],p3[0])
-ppReIntegrated = np.zeros((N-1,3))
+#integrate whole trajectory from initial conditions, reinject previous solution
+p_boris_ri = np.zeros((N,3))
+p_boris_ri[0] = (p1[0],p2[0],p3[0])
+
+pp_ri = np.zeros((N-1,3))
 for i in range(0,N-1):
-    borisPReIntegrated[i+1], ppReIntegrated[i] = boris_relativistic(borisPReIntegrated[i], ef[i], bf[i],
-                                                                    dt, charge, mass, it=True)
-energyBorisReIntegrated = energy(borisPReIntegrated, np.abs(mass))
-
-
-#----------------------------------------------
-fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
-
-sub1.plot(t,np.abs(energyBoris-energySim)/energySim)
-
-sub1.set_yscale("log")
+    p_boris_ri[i+1], pp_ri[i] = boris_relativistic(p_boris_ri[i], ef[i], bf[i],
+                                                   dt, charge, mass, it=True)
+energyBorisReIntegrated = energy(p_boris_ri, mass)
 
 #----------------------------------------------
-fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
-
-sub1.plot(t,np.abs(energyBorisReIntegrated-energySim)/energySim)
-
-sub1.set_yscale("log")
-
-#----------------------------------------------
-fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
-
-sub1.plot(t,borisPReIntegrated[:,0],color="r")
-sub1.plot(t,borisPReIntegrated[:,1],color="g")
-sub1.plot(t,borisPReIntegrated[:,2],color="b")
-
-sub1.plot(t,p1,color="k",linestyle="--")
-sub1.plot(t,p2,color="orange",linestyle="--")
-sub1.plot(t,p3,color="cyan",linestyle="--")
-
-
-#----------------------------------------------
-#from sim and first push from data
+#work from sim trajectory
 workE_p = np.zeros((N,3))
 workE_pp = np.zeros((N,3))
 
@@ -167,53 +141,86 @@ workE_pp = np.zeros((N,3))
 workE_p[1:]  = p[:-1] /lorentz(p[:-1]) [...,None] *ef[:-1]*charge /2 #work first push
 workE_pp[1:] = pp     /lorentz(pp)     [...,None] *ef[:-1]*charge /2 #work second push
 
-totWorkE = np.sum(workE_p,axis=-1)+np.sum(workE_pp,axis=-1)
-tot_int_WorkE = np.cumsum(totWorkE)*dt + energySim[0]
+totWorkE_sim = np.sum(workE_p,axis=-1) + np.sum(workE_pp,axis=-1) #sum over two half pushes and over components
+I_totWorkE_sim = np.cumsum(totWorkE_sim)*dt + energySim[0]
 
 #----------------------------------------------
-#reintegrated data and first push from reintegration
-workE_borisPReIntegrated = np.zeros((N,3))
-workE_ppReIntegrated = np.zeros((N,3))
+#work from reintegrated trajectory
+workE_p_boris_ri = np.zeros((N,3))
+workE_pp_ri = np.zeros((N,3))
 
-workE_borisPReIntegrated[1:]  = borisPReIntegrated[:-1] /lorentz(borisPReIntegrated[:-1]) [...,None] *ef[:-1]*charge /2 #work first push
-workE_ppReIntegrated[1:] = ppReIntegrated     /lorentz(ppReIntegrated)     [...,None] *ef[:-1]*charge /2 #work second push
+workE_p_boris_ri[1:]  = p_boris_ri[:-1] /lorentz(p_boris_ri[:-1]) [...,None] *ef[:-1]*charge /2 #work first push
+workE_pp_ri[1:] = pp_ri/lorentz(pp_ri)[...,None] *ef[:-1]*charge /2 #work second push
 
-totWorkEReIntegrated = np.sum(workE_borisPReIntegrated,axis=-1)+np.sum(workE_ppReIntegrated,axis=-1)
-tot_int_WorkEReIntegrated = np.cumsum(totWorkEReIntegrated)*dt + energySim[0]
-
-#----------------------------------------------
-fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
-
-sub1.plot(t,np.sum(workE_p,axis=-1),color="b")
-sub1.plot(t,np.sum(workE_pp,axis=-1),color="g")
-
-sub1.plot(t,totWorkE,color="r")
-
-sub1.plot(t+dt/2,np.gradient(energySim,dt),color="k",linestyle="--")
+totWork_p_boris_ri = np.sum(workE_p_boris_ri,axis=-1)+np.sum(workE_pp_ri,axis=-1)
+I_totWork_p_boris_ri = np.cumsum(totWork_p_boris_ri)*dt + energySim[0]
 
 
 #----------------------------------------------
 fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
 
-sub1.plot(t,np.sum(workE_borisPReIntegrated,axis=-1),color="b")
-sub1.plot(t,np.sum(workE_ppReIntegrated,axis=-1),color="g")
+sub1.plot(t,np.abs(energyBoris-energySim)/energySim,
+          label=r"$(\mathbf{E}_{boris\ next\ only}-\mathbf{E}_{sim})/\mathbf{E}_{sim}$")
 
-sub1.plot(t,totWorkE,color="r")
-
-sub1.plot(t+dt/2,np.gradient(energySim,dt),color="k",linestyle="--")
-
-
-
-#----------------------------------------------
-fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
-
-sub1.plot(t,tot_int_WorkE,color="r")
-sub1.plot(t,tot_int_WorkEReIntegrated,color="b")
-sub1.plot(t,energySim,color="k",linestyle="--")
-
-
-#----------------------------------------------
-fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
-
-sub1.plot(t,np.abs(tot_int_WorkE-energySim)/energySim)
 sub1.set_yscale("log")
+plt.xlabel(r'$t$')
+sub1.legend(frameon=False)
+
+#----------------------------------------------
+fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
+
+sub1.plot(t,np.abs(energyBorisReIntegrated-energySim)/energySim,
+          label=r"$(\mathbf{E}_{boris\ reintegrated}-\mathbf{E}_{sim})/\mathbf{E}_{sim}$")
+
+sub1.set_yscale("log")
+plt.xlabel(r'$t$')
+sub1.legend(frameon=False)
+
+#----------------------------------------------
+fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
+
+sub1.plot(t,p_boris_ri[:,0],color="r",label=r"$p1_{boris\ ri}$")
+sub1.plot(t,p_boris_ri[:,1],color="g",label=r"$p1_{boris\ ri}$")
+sub1.plot(t,p_boris_ri[:,2],color="b",label=r"$p1_{boris\ ri}$")
+
+sub1.plot(t,p1,color="k",linestyle="--",label=r"$p1_{boris\ sim}$")
+sub1.plot(t,p2,color="orange",linestyle="--",label=r"$p1_{boris\ sim}$")
+sub1.plot(t,p3,color="cyan",linestyle="--",label=r"$p1_{boris\ sim}$")
+
+plt.xlabel(r'$t$')
+sub1.legend(frameon=False)
+
+#----------------------------------------------
+fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
+
+sub1.plot(t,np.sum(workE_p,axis=-1),color="cyan",label=r"$\vec v_{sim}\cdot\vec E$")
+sub1.plot(t,np.sum(workE_pp,axis=-1),color="g",linestyle="--",label=r"$\vec v_{sim\ centered}\cdot\vec E$")
+
+sub1.plot(t,totWorkE_sim,color="r",label=r"$\vec v_{sim}\cdot\vec E+\vec v_{sim\ centered}\cdot\vec E$")
+
+sub1.plot(t[1:],(energySim[1:]-energySim[:-1])/dt,color="k",linestyle="--",label=r"$\partial_t \mathbf{E}_{sim}$")
+plt.xlabel(r'$t$')
+sub1.legend(frameon=False)
+
+
+
+
+#----------------------------------------------
+fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
+
+sub1.plot(t,I_totWorkE_sim,color="r",label=r"$\int\vec v_{sim}\cdot\vec E$")
+sub1.plot(t,I_totWork_p_boris_ri,color="b",label=r"$\int\vec v_{boris\ ri}\cdot\vec E$")
+sub1.plot(t,energySim,color="k",linestyle="--",label=r"$\mathbf{E}_{sim}$")
+plt.xlabel(r'$t$')
+sub1.legend(frameon=False)
+
+"""
+#----------------------------------------------
+fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
+
+sub1.plot(t,np.abs(I_totWorkE_sim-energySim)/energySim,label=r"$\vec v_{sim}\cdot\vec E$")
+sub1.set_yscale("log")
+plt.xlabel(r'$t$')
+sub1.legend(frameon=False)
+
+"""

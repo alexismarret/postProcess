@@ -94,7 +94,7 @@ time = o.getTimeAxis()[st]
 
 #----------------------------------------------
 eps = 1e-6   #avoid /0
-UiL = o.getUfluid(time, "iL","y",sl=sl)
+Ue = o.getUfluid(time, "eR","x",sl=sl)
 
 
 #----------------------------------------------
@@ -102,10 +102,10 @@ stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
 extent=(min(x),max(x),min(y),max(y))
 
 #----------------------------------------------
-path = o.path+"/plots/UiL"
+path = o.path+"/plots/UeRx"
 o.setup_dir(path)
 
-it = ((UiL   [s[0]:s[1]],
+it = ((Ue   [s[0]:s[1]],
         time[s[0]:s[1]],
         extent, s[0], path) for s in stages)
 

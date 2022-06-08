@@ -22,8 +22,9 @@ plt.rcParams.update(params)
 # plt.close("all")
 
 #----------------------------------------------
-run  ="CS3D_noKink"
+# run  ="CS3D_noKink"
 # run = "CS3Dtrack"
+run ="CS3Drmhr"
 o = osiris.Osiris(run,spNorm="iL",nbrCores=6)
 
 sx = slice(None,None,1)

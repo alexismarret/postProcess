@@ -29,7 +29,7 @@ plt.rcParams.update(params)
 # plt.close("all")
 
 #----------------------------------------------
-run  ="CS2Drmlr"
+run  ="CS2Drmhr"
 o = osiris.Osiris(run,spNorm=None)
 
 x     = o.getAxis("x")
