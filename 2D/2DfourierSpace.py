@@ -111,8 +111,8 @@ for i in range(len(time)):
     ftB[i] = np.abs(np.fft.fft2(normB[i]))
     ftE[i] = np.abs(np.fft.fft2(normE[i]))
 
-ftB = ftB[:,len(x)//2:,len(y)//2:]
-ftE = ftE[:,len(x)//2:,len(y)//2:]
+ftB = ftB[:,:len(x)//2,:len(y)//2]
+ftE = ftE[:,:len(x)//2:,:len(y)//2]
 
 stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
 extent=(min(axis_kX),max(axis_kX),min(axis_kY),max(axis_kY))

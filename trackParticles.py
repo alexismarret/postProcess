@@ -11,12 +11,6 @@ import numba
 import numpy as np
 
 
-
-
-
-
-
-
 #--------------------------------------------------------------
 def readUnorderedTrackData(path, species, qty):
     # Read chunked hdf5 track data and order it correctly.
@@ -30,7 +24,7 @@ def readUnorderedTrackData(path, species, qty):
     # remaining space in the output is padded with zeros.
     #
     # Input: Path of simulation data, species name
-    # Output: a dict containing the track data. Keys are ['t', 'q', 'ene', 'x1', 'x2', 'p1', 'p2', 'p3']
+    # Output: a dict containing the track data. Keys are ['t', 'q', 'ene', 'x1', 'x2', 'x3', 'p1', 'p2', 'p3']
     #    If you enabled ifdmp_tracks_efl or ifdmp_tracks_bfl, it includes ['E1', 'E2', 'E3', 'B1', 'B2', 'B3']
     #    Each element of the dict is a 2D array with dimensions (particle_index, timestep)
 

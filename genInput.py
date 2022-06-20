@@ -7,41 +7,36 @@ Created on Thu Mar 17 13:05:45 2022
 """
 import numpy as np
 import itertools
-import sys
 
 #1D: power of 2**1: 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096
 #2D: power of 2**2: 1, 4, 16, 64, 256, 1024, 4096
 #3D: power of 2**3: 1, 8, 64, 512, 4096
 #--------------------------------------------------------------
 dim = "3D"
-Nnodes = 64
+Nnodes = 512
 NCPUperNodes = 64
 Nthreads = 4
 
-Ncell = np.array([512,512,512])
-duration = 60              #in units of 1/w_pi
+Ncell = np.array([1024,1024,1024])
+duration = 1000              #in units of 1/w_pi
 
 v  = 0.5                    #velocity in units of c (=beta)
 n0 = 0.5     #density in proper frame
-T  = 1e0    #in units of me * c^2 (=511 KeV) in rest frame
+T  = 1e-6    #in units of me * c^2 (=511 KeV) in rest frame
+alfMach = 20   #wanted Alfvenic Mach number
+B_angle = 80  #angle between x axis and B in degrees in (x,y) plane
+mu = 64.
 
-mu = 100.
-
-dx = 1/4      #in units of c/w_pe
-dy = 1/4
-dz = 1/4
+dx = 1/2      #in units of c/w_pe
+dy = 1/2
+dz = 1/2
 
 ppc = 8
 nPop = 4
 
-dtDump = 0.5    #dump time step desired in units of 1/w_pi
+dtDump = 30    #dump time step desired in units of 1/w_pi
 
-#in units of c/wpi
-# zoneX = (0,128)
-# zoneY = (0,15)
-# zoneZ = (15,25)
-# zoneCells = (zoneX[1]-zoneX[0])*(zoneY[1]-zoneY[0])*(zoneZ[1]-zoneZ[0])
-# t<400 t>70
+
 #--------------------------------------------------------------
 lorentz = 1./np.sqrt(1-v**2)
 u = lorentz * v   #momentum
@@ -49,7 +44,13 @@ n = lorentz * n0
 uthe = np.sqrt(T)
 uthi = np.sqrt(T/mu)
 
-# B = 10.
+#B needed to get AlfMach
+if alfMach!=0: B  = v * np.sqrt(n0*(1+mu)) / alfMach
+else:          B  = 0
+#components to satisfy desired angle
+Bx = B * np.cos(B_angle*np.pi/180)
+By = B * np.sin(B_angle*np.pi/180)
+
 # t_ci_wpe = 1. / (B/(gamma*mu))
 ratio_l_i_l_e = np.sqrt(mu)
 ratio_l_d_l_e = np.sqrt(T/lorentz)
@@ -62,8 +63,8 @@ gammaKink = 3/2 * v * np.sqrt(1/(mu*R0))    #[wpi]
 lambdaKink = 2*np.pi * 2/3 * np.sqrt(R0)    #[c/wpi]
 kKink = 2*np.pi/lambdaKink
 
-#assuming 8 e-foldings and an empyrical factor 5 correction for isotropization time
-tEq = (8/gammaIfil + 8/gammaKink)*5
+#assuming 8 e-foldings and an empyrical factor 3 correction for isotropization time
+tEq = (8/gammaIfil + 8/gammaKink)*3
 
 if dim=="1D":
     Ncell = Ncell[0]
@@ -175,15 +176,17 @@ print("uthe =",round(uthe,r))
 print("uthi =",round(uthi,r))
 
 print("-------------------------------")
-#print("t_ci/t_wpe =",round(t_ci_wpe,r),"| B =",B)
+print("v/v_A =",round(alfMach,r),"| B =",round(B,r))
+print("B_angle =",str(round(B_angle,r))+"°",
+      "| Bx =",round(Bx,r) ,"| By =",round(By,r))
 print("mu =",mu)
 print("li/le =",round(ratio_l_i_l_e,r))
 print("lD/le =",round(ratio_l_d_l_e,r))
 print("lorentz =",round(lorentz,r))
+
+print("-------------------------------")
 print("kmin =",round(kmin,r),
       "| kmax =",round(kmax,r),"[wpi/c] (x)")
-print("-------------------------------")
-
 print("gammaIfil =",round(gammaIfil,r),"[wpi]")
 print("gammaKink =",round(gammaKink,r),"[wpi]")
 print("kKink =",round(kKink,r),"[wpi/c]")

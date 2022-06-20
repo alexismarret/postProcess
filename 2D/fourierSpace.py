@@ -32,7 +32,7 @@ run  ="CS2DrmhrTrack"
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
-st = slice(None,None,1)
+st = slice(None,None,10)
 x    = o.getAxis("x")[sx]
 y    = o.getAxis("y")[sx]
 time = o.getTimeAxis()[st]
@@ -54,7 +54,7 @@ if plotSpectrum2D:
                        aspect=1,
                        cmap="jet",
                        norm=LogNorm(vmin=1e-2,vmax=1e2),
-                       interpolation="None")
+                        interpolation="None")
 
 
         divider = make_axes_locatable(sub1)
@@ -112,8 +112,8 @@ if plotSpectrum2D:
     #----------------------------------------------
     data = o.getB(time,"z")
 
-    ftB = np.abs(np.fft.fft2(data,axes=(1,2)))
-    ftB = ftB[:,:indMid+1,indMid-1:] + eps
+    ftB = np.abs(np.fft.rfft2(data))
+    ftB = np.flip(ftB[:,:indMid+1,:],axis=-1) + eps
 
     #----------------------------------------------
     path = o.path+"/plots/fourierBz"
@@ -124,7 +124,7 @@ if plotSpectrum2D:
            extent, s[0], path) for s in stages)
 
     pf.parallel(plot2D, it, o.nbrCores, noInteract=True)
-
+    """
     #----------------------------------------------
     #----------------------------------------------
     data = o.getE(time,"x")
@@ -158,7 +158,7 @@ if plotSpectrum2D:
            extent, s[0], path) for s in stages)
 
     pf.parallel(plot2D, it, o.nbrCores, noInteract=True)
-
+    """
 
 
 #----------------------------------------------

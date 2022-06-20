@@ -24,10 +24,11 @@ import time as ti
 class Osiris:
 
     #--------------------------------------------------------------
-    def __init__(self, run, spNorm=None, nbrCores=6):
+    def __init__(self, run, spNorm=None, avg=False, nbrCores=6):
 
         self.path = os.environ.get("OSIRIS_RUN_DIR") + "/" + run
         self.allRuns = np.sort(os.listdir(os.environ.get("OSIRIS_RUN_DIR")))
+        self.avg = avg     #if true, assume all grid diagnostics are averaged
         self.nbrCores = nbrCores
 
         self.parseInput(run)
@@ -108,8 +109,8 @@ class Osiris:
 
                 #---------------------------
                 #EM parameters
-                elif "ext_b0" in l:
-                    self.ext_b0 = np.float_(value.split(","))
+                elif "init_b0" in l:
+                    self.init_b0 = np.float_(value.split(","))
 
                 elif "ndump_fac_ene_int=" in l:
                     self.ndump_fac_ene_int = int(value)
@@ -121,6 +122,7 @@ class Osiris:
                     self.ndump_facP       = np.zeros(Ns)
                     self.ndump_fac_ene    = np.zeros(Ns)
                     self.ndump_fac_raw    = np.zeros(Ns)
+                    self.ndump_fac_pha    = np.zeros(Ns)
                     self.ndump_fac_tracks = np.zeros(Ns)
                     self.niter_tracks     = np.zeros(Ns)
                     self.species_name     = np.empty(Ns, dtype='object')
@@ -163,6 +165,9 @@ class Osiris:
                     elif "ndump_fac_raw=" in l:
                         self.ndump_fac_raw[s] = int(value)
 
+                    elif "ndump_fac_pha" in l:
+                        self.ndump_fac_pha[s] = int(value)
+
                     elif "ndump_fac_tracks=" in l:
                         self.ndump_fac_tracks[s] = int(value)
 
@@ -197,7 +202,7 @@ class Osiris:
         print("dt =", self.dt)
         print("tmin =", self.tmin)
         print("tmax =", self.tmax)
-        try: print("ext_b0 =", self.ext_b0)
+        try: print("init_b0 =", self.init_b0)
         except: pass
 
         print("-------------------------------")
@@ -221,6 +226,7 @@ class Osiris:
         print("ndump_facP =", self.ndump_facP)
         print("ndump_fac_ene =", self.ndump_fac_ene)
         print("ndump_fac_raw =", self.ndump_fac_raw)
+        print("ndump_fac_pha =", self.ndump_fac_pha)
         print("ndump_fac_tracks =", self.ndump_fac_tracks)
         print("niter_tracks =", self.niter_tracks)
 
@@ -251,7 +257,7 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def getTimeAxis(self, species=None, ene=False, raw=False, track=False):
+    def getTimeAxis(self, species=None, ene=False, raw=False, pha=False):
 
         #species time
         if species!=None:
@@ -267,6 +273,11 @@ class Osiris:
                 #use glob.glob to ignore hidden files
                 N = len(glob.glob(self.path+"/MS/RAW/"+species+"/*"))
                 multFactor = self.ndump_fac_raw[species_index]
+
+            elif pha:
+                N = len(glob.glob(self.path+"/MS/PHA/"+
+                                   os.listdir(self.path+"/MS/PHA")[0]+"/"+species+"/*"))
+                multFactor = self.ndump_fac_pha[species_index]
 
             else:
                 #retrieve number of dumps from any of the folders in /DENSITY
@@ -314,13 +325,15 @@ class Osiris:
         #invert slices because of needed transposition
         #slices performance can be worse than reading everything
         #does not support list of unordered indices
-        slices = tuple(slices)[::-1]
+        if transpose: slices = tuple(slices)[::-1]
+        else:         slices = tuple(slices)
 
         #adjust axis average, reversed because of transposition
         #av input can be 1,2,3 corresponding to spatial axis only
         if av!=None:
             if type(av)==int: av = (av,)
-            av = self.revertAx((a-1 for a in av))
+            av = tuple((a-1 for a in av))
+            if transpose: av = self.revertAx(av)
 
         #create inputs
         it = ((dataPath + p, slices, av, transpose) for p in np.take(sorted(os.listdir(dataPath)), index))
@@ -332,11 +345,15 @@ class Osiris:
                 G = pf.parallel(pf.readGridData, it, self.nbrCores)
             #sequential reading of data
             else:
-                #calculate size of sliced array, invert again slices and averaged
-                #axis to order after transposition
-                G = np.zeros((N,)+self.getSlicedSize(slices[::-1],self.revertAx(av)))
+                init = True
                 for i in range(N):
-                    G[i] = pf.readGridData(next(it)[0], slices, av, transpose)
+                    if init:
+                        data = pf.readGridData(next(it)[0], slices, av, transpose)
+                        G = np.zeros((N,)+data.shape)
+                        G[i] = data
+                        init = False
+                    else:
+                        G[i] = pf.readGridData(next(it)[0], slices, av, transpose)
 
         #single value read
         else:
@@ -346,43 +363,117 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def revertAx(self, a):
+    def getRaw(self, time, species, key, parallel=True):
 
-        if a==None:
-            return (None,)
+        #['SIMULATION', 'ene', 'p1', 'p2', 'p3', 'q', 'tag', 'x1', 'x2', 'x3']
+
+        dataPath = self.path+"/MS/RAW/"+species+"/"
+
+        #handle list or single time
+        try:    N = len(time)
+        except: time = [time]; N = 1
+
+        #get time
+        index=np.nonzero(np.in1d(self.getTimeAxis(species,raw=True),time))[0]
+
+        #check if requested times exist
+        if len(index)!=N: raise ValueError("Unknown time for '"+dataPath+"'")
+
+        #create inputs
+        it = ((dataPath + p, key) for p in np.take(sorted(os.listdir(dataPath)), index))
+
+        #multiple values read, very heavy in memory because of irregular data shape
+        if N>1:
+            #parallel reading of data
+            if parallel:
+                G = pf.parallel(pf.readRawData, it, self.nbrCores)
+            #sequential reading of data
+            else:
+                G = np.asarray(tuple(pf.readRawData(i[0], key) for i in it), dtype=object)
+
+        #single value read
         else:
-            val = self.ndim-1
-            a = list(a)
-            for i in range(len(a)):
-                if   a[i] == 0: a[i] = val
-                elif a[i] == val: a[i] = 0
+            G = pf.readRawData(next(it)[0], key)
 
-            return tuple(a)
+        return G
 
 
     #--------------------------------------------------------------
-    def getSlicedSize(self, sl, av):
+    def getPhaseSpace(self, time, species, direction, comp, sl=slice(None),
+                      parallel=True, transpose=True):
 
-        #array containing final indices and step of sliced array
-        #None if no slicing in a given direction, and 0 if only one element
-        ind = [None]*self.ndim
+        #[time,position,momentum]
 
-        for k in range(len(ind)):
-            #if axis is averaged or single element, set size to 0 and go to next axis
-            if (k in av) or (type(sl[k])==int): ind[k] = 0
-            #element of sl is a slice()
-            elif type(sl[k])==slice: ind[k] = sl[k].indices(self.grid[k])
+        if    direction=="x": l = "x1"
+        elif  direction=="y": l = "x2"
+        elif  direction=="z": l = "x3"
 
-        #get corresponding number of elements accounting for uneven divisions
-        sh = []
-        for k,i in enumerate(ind):
-            if type(i)==tuple:
-                if (i[1]-i[0])%i[2]!=0: sh.append((i[1]-i[0])//i[2]+1)
-                else:                   sh.append((i[1]-i[0])//i[2])
-            elif i==None:
-                sh.append(self.grid[k])
+        if   comp=="x": p = "p1"
+        elif comp=="y": p = "p2"
+        elif comp=="z": p = "p3"
+        elif comp=="g": p = "gamma"
 
-        return tuple(sh)
+        key = p+l
+        dataPath = self.path+"/MS/PHA/"+key+"/"+species+"/"
+
+        #handle list or single time
+        try:    N = len(time)
+        except: time = [time]; N = 1
+
+        #get time
+        index=np.nonzero(np.in1d(self.getTimeAxis(species,pha=True),time))[0]
+
+        #check if requested times exist
+        if len(index)!=N: raise ValueError("Unknown time for '"+dataPath+"'")
+
+        #complete slice if needed
+        slices = [slice(None)]*2
+        if type(sl) in {slice,int}: sl = (sl,)
+        for k,s in enumerate(sl): slices[k]=s
+
+        if transpose: slices = tuple(slices)[::-1]
+        else:         slices = tuple(slices)
+        av=None
+
+        #create inputs
+        it = ((dataPath + p, slices, av, transpose) for p in np.take(sorted(os.listdir(dataPath)), index))
+
+        #multiple values read, very heavy in memory because of irregular data shape
+        if N>1:
+            #parallel reading of data
+            if parallel:
+                G = pf.parallel(pf.readGridData, it, self.nbrCores)
+            #sequential reading of data
+            else:
+                init = True
+                for i in range(N):
+                    if init:
+                        data = pf.readGridData(next(it)[0], slices, av, transpose)
+                        G = np.zeros((N,)+data.shape)
+                        G[i] = data
+                        init = False
+                    else:
+                        G[i] = pf.readGridData(next(it)[0], slices, av, transpose)
+
+        #single value read
+        else:
+            G = pf.readGridData(next(it)[0], slices, av, transpose)
+
+        return G
+
+
+    #--------------------------------------------------------------
+    def getBoundPhaseSpace(self, species):
+
+        #path to any of the folder in phasespace diag of the species
+        dataPath = glob.glob(self.path+"/MS/PHA/"+
+                           os.listdir(self.path+"/MS/PHA")[0]+"/"+species+"/*")[0]
+
+        with h5py.File(dataPath,"r") as f:
+            boundX = f['AXIS']["AXIS1"][()]
+            boundY = f["AXIS"]["AXIS2"][()]
+
+        return boundX, boundY
 
 
     #--------------------------------------------------------------
@@ -427,12 +518,13 @@ class Osiris:
 
     #--------------------------------------------------------------
     def getB(self, time, comp, sl=slice(None), av=None,
-             parallel=True, transpose=True):
+             reduced=False, parallel=True, transpose=True):
 
         if   comp=="x": key = "b1"
         elif comp=="y": key = "b2"
         elif comp=="z": key = "b3"
 
+        if reduced: key+="-savg"
         dataPath = self.path+"/MS/FLD/"+key+"/"
 
         B = self.getOnGrid(time,dataPath,None,sl,av,parallel,transpose)
@@ -442,12 +534,13 @@ class Osiris:
 
     #--------------------------------------------------------------
     def getE(self, time, comp, sl=slice(None), av=None,
-             parallel=True, transpose=True):
+             reduced=False, parallel=True, transpose=True):
 
         if   comp=="x": key = "e1"
         elif comp=="y": key = "e2"
         elif comp=="z": key = "e3"
 
+        if reduced: key+="-savg"
         dataPath = self.path+"/MS/FLD/"+key+"/"
 
         E = self.getOnGrid(time,dataPath,None,sl,av,parallel,transpose)
@@ -457,12 +550,13 @@ class Osiris:
 
     #--------------------------------------------------------------
     def getUfluid(self, time, species, comp, sl=slice(None), av=None,
-                  parallel=True, transpose=True):
+                  reduced=False, parallel=True, transpose=True):
 
         if   comp=="x": key = "ufl1"
         elif comp=="y": key = "ufl2"
         elif comp=="z": key = "ufl3"
 
+        if reduced: key+="-savg"
         dataPath = self.path+"/MS/UDIST/"+species+"/"+key+"/"
 
         Ufluid = self.getOnGrid(time,dataPath,species,sl,av,parallel,transpose)
@@ -472,12 +566,13 @@ class Osiris:
 
     #--------------------------------------------------------------
     def getUth(self, time, species, comp, sl=slice(None), av=None,
-               parallel=True, transpose=True):
+               reduced=False, parallel=True, transpose=True):
 
         if   comp=="x": key = "uth1"
         elif comp=="y": key = "uth2"
         elif comp=="z": key = "uth3"
 
+        if reduced: key+="-savg"
         dataPath = self.path+"/MS/UDIST/"+species+"/"+key+"/"
 
         Uth = self.getOnGrid(time,dataPath,species,sl,av,parallel,transpose)
@@ -486,30 +581,16 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def getTemp(self, time, species, comp, sl=slice(None), av=None,
-                parallel=True, transpose=True):
-
-        key = "T"+comp
-
-        dataPath = self.path+"/MS/UDIST/"+species+"/"+key+"/"
-
-        T = self.getOnGrid(time,dataPath,species,sl,av,parallel,transpose)
-
-        return T
-
-
-    #--------------------------------------------------------------
-    def getCharge(self, time, species, cellAv=False, sl=slice(None), av=None,
-                  parallel=True, transpose=True):
+    def getCharge(self, time, species, sl=slice(None), av=None,
+                  reduced=False, parallel=True, transpose=True):
 
         """
         Get species charge density C = n*q
-        cellAv: moment obtained from macroparticles in the cell, no interpolation
         """
 
         key = "charge"
-        if cellAv: dataPath = self.path+"/MS/CELL_AVG/"+species+"/"+key+"/"
-        else:      dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
+        if reduced: key+="-savg"
+        dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
 
         Chr = self.getOnGrid(time,dataPath,species,sl,av,parallel,transpose)
 
@@ -517,16 +598,16 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def getMass(self, time, species, cellAv=False, sl=slice(None),
-                      av=None, parallel=True, transpose=True):
+    def getMass(self, time, species, sl=slice(None), av=None,
+                      reduced=False, parallel=True, transpose=True):
 
         """
         Get species mass density M = n*m
         """
 
         key = "m"
-        if cellAv: dataPath = self.path+"/MS/CELL_AVG/"+species+"/"+key+"/"
-        else:      dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
+        if reduced: key+="-savg"
+        dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
 
         M = self.getOnGrid(time,dataPath,species,sl,av,parallel,transpose)
 
@@ -534,15 +615,15 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def getCurrent(self, time, species, comp, cellAv=False, sl=slice(None), av=None,
-                   parallel=True, transpose=True):
+    def getCurrent(self, time, species, comp, sl=slice(None), av=None,
+                   reduced=False, parallel=True, transpose=True):
 
         if   comp=="x": key = "j1"
         elif comp=="y": key = "j2"
         elif comp=="z": key = "j3"
 
-        if cellAv: dataPath = self.path+"/MS/CELL_AVG/"+species+"/"+key+"/"
-        else:      dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
+        if reduced: key+="-savg"
+        dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
 
         Cur = self.getOnGrid(time,dataPath,species,sl,av,parallel,transpose)
 
@@ -551,12 +632,13 @@ class Osiris:
 
     #--------------------------------------------------------------
     def getTotCurrent(self, time, comp, sl=slice(None), av=None,
-                      parallel=True, transpose=True):
+                      reduced=False, parallel=True, transpose=True):
 
         if   comp=="x": key = "j1"
         elif comp=="y": key = "j2"
         elif comp=="z": key = "j3"
 
+        if reduced: key+="-savg"
         dataPath = self.path+"/MS/FLD/"+key+"/"
 
         totCur = self.getOnGrid(time,dataPath,None,sl,av,parallel,transpose)
@@ -566,72 +648,17 @@ class Osiris:
 
     #--------------------------------------------------------------
     #get species kinetic energy density
-    def getKinEnergy(self, time, species, cellAv=False, sl=slice(None), av=None,
-                     parallel=True, transpose=True):
+    def getKinEnergy(self, time, species, sl=slice(None), av=None,
+                     reduced=False, parallel=True, transpose=True):
 
         key = "ene"
-        if cellAv: dataPath = self.path+"/MS/CELL_AVG/"+species+"/"+key+"/"
-        else:      dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
+
+        if reduced: key+="-savg"
+        dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
 
         Enrgy = self.getOnGrid(time,dataPath,species,sl,av,parallel,transpose)
 
         return Enrgy
-
-
-    #--------------------------------------------------------------
-    def getRaw(self, time, species, key, parallel=True):
-
-        #['SIMULATION', 'ene', 'p1', 'p2', 'p3', 'q', 'tag', 'x1', 'x2', 'x3']
-
-        dataPath = self.path+"/MS/RAW/"+species+"/"
-
-        #handle list or single time
-        try:    N = len(time)
-        except: time = [time]; N = 1
-
-        #get time
-        index=np.nonzero(np.in1d(self.getTimeAxis(species,raw=True),time))[0]
-
-        #check if requested times exist
-        if len(index)!=N: raise ValueError("Unknown time for '"+dataPath+"'")
-
-        #create inputs
-        it = ((dataPath + p, key) for p in np.take(sorted(os.listdir(dataPath)), index))
-
-        #multiple values read, very heavy in memory because of irregular data shape
-        if N>1:
-            #parallel reading of data
-            if parallel:
-                G = pf.parallel(pf.readRawData, it, self.nbrCores)
-            #sequential reading of data
-            else:
-                G = np.asarray(tuple(pf.readRawData(i[0], key) for i in it), dtype=object)
-
-        #single value read
-        else:
-            G = pf.readRawData(next(it)[0], key)
-
-        return G
-
-
-    #--------------------------------------------------------------
-    def getPhaseSpace(self, time, species, direction, comp,
-                      parallel=True, transpose=True,):
-
-        if    direction=="x": l = "x1"
-        elif  direction=="y": l = "x2"
-        elif  direction=="z": l = "x3"
-
-        if   comp=="x": p = "p1"
-        elif comp=="y": p = "p2"
-        elif comp=="z": p = "p3"
-        elif comp=="g": p = "gamma"
-
-        dataPath = self.path+"/MS/PHA/"+p+l+"/"+species+"/"
-
-        Pha = self.getOnGrid(time,dataPath,species,parallel)
-
-        return Pha
 
 
     #--------------------------------------------------------------
@@ -663,11 +690,6 @@ class Osiris:
     def crossProduct(self, Ax, Ay, Az, Bx, By, Bz):
 
         return Ay*Bz-Az*By, Az*Bx-Ax*Bz, Ax*By-Ay*Bx
-
-    #--------------------------------------------------------------
-    def dotProduct(self, Ax, Ay, Az, Bx, By, Bz):
-
-        return Ax*Bx + Ay*By + Az*Bz
 
 
     #--------------------------------------------------------------
@@ -782,35 +804,58 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def createTagsFile(self, species, outPath, step=None):
+    def createTagsFile(self, species, outPath, step=None,
+                       synth=False, N_CPU=None, Tpart=None):
 
-        time = self.getTimeAxis(species,raw=True)
-        tag = self.getRaw(time, species, "tag")   #[time,part]
+        if synth:
+            # ppcpu = Tpart // N_CPU
+            # rmn   = Tpart % N_CPU
 
-        start=True
-        for i in range(len(tag)):
+            if Tpart % N_CPU ==0: N = Tpart // N_CPU
+            else:                 N = Tpart // N_CPU + 1
 
-            if start:
-                stackedTags = tag[i]
-                start=False
-            else:
-                cond = np.isin(tag[i],stackedTags)   #false if tag is NOT already set
-                keep = ~np.logical_and(cond[:,0],cond[:,1])
-                #add tag if both node and particle number are not already in
-                stackedTags = np.vstack((stackedTags, tag[i][keep]))
+            ppcpu = Tpart/N_CPU
 
-        #sort the tags
-        # stackedTags=sorted(stackedTags, key=operator.itemgetter(0, 1))[::step]
-        stackedTags = stackedTags[::step]
-        print("Species",species+":",len(stackedTags),"tags")
+            stackedTags = np.zeros((N_CPU,2))
 
-        with open(outPath,'w') as f:
+            cpu = 1
+            for p in range(Tpart):
 
-            # First line of file should contain the total number of tags followed by a comma
-            f.write(str(len(stackedTags))+',\n')
-            # The rest of the file is just the node id and particle id for each tag, each followed by a comma
-            for node_id,particle_id in stackedTags:
-                f.write(str(node_id)+', '+str(particle_id)+',\n')
+                if p>ppcpu: cpu+=1
+                stackedTags[cpu-1] = (cpu,p)
+
+            print(stackedTags)
+
+
+        else:
+            time = self.getTimeAxis(species,raw=True)
+            tag = self.getRaw(time, species, "tag")   #[time,part]
+
+            start=True
+            for i in range(len(tag)):
+
+                if start:
+                    stackedTags = tag[i]
+                    start=False
+                else:
+                    cond = np.isin(tag[i],stackedTags)   #false if tag is NOT already set
+                    keep = ~np.logical_and(cond[:,0],cond[:,1])
+                    #add tag if both node and particle number are not already in
+                    stackedTags = np.vstack((stackedTags, tag[i][keep]))
+
+            #sort the tags
+            stackedTags=sorted(stackedTags, key=operator.itemgetter(0, 1))[::step]
+            # stackedTags = stackedTags[::step]
+
+            print("Species",species+":",len(stackedTags),"tags")
+
+            with open(outPath,'w') as f:
+
+                # First line of file should contain the total number of tags followed by a comma
+                f.write(str(len(stackedTags))+',\n')
+                # The rest of the file is just the node id and particle id for each tag, each followed by a comma
+                for node_id,particle_id in stackedTags:
+                    f.write(str(node_id)+', '+str(particle_id)+',\n')
 
         return
 
@@ -862,10 +907,77 @@ class Osiris:
             with h5py.File(filePath, 'w') as hf:
                 hf.create_dataset(key, data=data)
 
-
         #load ordered data, much faster
-        with h5py.File(filePath,"r") as f:
+        with h5py.File(filePath, "r") as f:
             return f[key][sl]
 
 
 
+
+
+    """
+    #--------------------------------------------------------------
+    def getPhaseSpace(self, time, species, direction, comp, sl=slice(None),
+                      parallel=True, transpose=True):
+
+        if    direction=="x": l = "x1"
+        elif  direction=="y": l = "x2"
+        elif  direction=="z": l = "x3"
+
+        if   comp=="x": p = "p1"
+        elif comp=="y": p = "p2"
+        elif comp=="z": p = "p3"
+        elif comp=="g": p = "gamma"
+
+        dataPath = self.path+"/MS/PHA/"+p+l+"/"+species+"/"
+
+        Pha = self.getOnGrid(time,dataPath,species,sl,None,parallel,transpose)
+
+        return Pha
+    """
+
+
+
+    """
+    #calculate size of sliced array, invert again slices and averaged
+    #axis to order after transposition
+    # G = np.zeros((N,)+self.getSlicedSize(slices[::-1],self.revertAx(av)))
+    #--------------------------------------------------------------
+    def revertAx(self, a):
+
+        if a==None:
+            return (None,)
+        else:
+            val = self.ndim-1
+            a = list(a)
+            for i in range(len(a)):
+                if   a[i] == 0: a[i] = val
+                elif a[i] == val: a[i] = 0
+
+            return tuple(a)
+
+
+    #--------------------------------------------------------------
+    def getSlicedSize(self, sl, av):
+
+        #array containing final indices and step of sliced array
+        #None if no slicing in a given direction, and 0 if only one element
+        ind = [None]*len(sl)
+
+        for k in range(len(ind)):
+            #if axis is averaged or single element, set size to 0 and go to next axis
+            if (k in av) or (type(sl[k])==int): ind[k] = 0
+            #element of sl is a slice()
+            elif type(sl[k])==slice: ind[k] = sl[k].indices(self.grid[k])
+
+        #get corresponding number of elements accounting for uneven divisions
+        sh = []
+        for k,i in enumerate(ind):
+            if type(i)==tuple:
+                if (i[1]-i[0])%i[2]!=0: sh.append((i[1]-i[0])//i[2]+1)
+                else:                   sh.append((i[1]-i[0])//i[2])
+            elif i==None:
+                sh.append(self.grid[k])
+
+        return tuple(sh)
+    """

@@ -41,14 +41,18 @@ axis_kY = np.fft.rfftfreq(len(y),y[1]-y[0])[1:] *2*np.pi
 
 ftbz_perp = np.zeros((len(time),len(axis_kY)))
 ftbz_para = np.zeros((len(time),len(axis_kX)))
+
 for i in range(len(time)):
+
     B = o.getB(time[i], "z")
     ftbz_perp[i] = np.mean(
-                   np.abs(np.fft.rfft(B,axis=1)[:,1:]),
-                   axis=(0,2))
+                    np.abs(np.fft.rfft(B,axis=1))[:,1:],
+                    axis=(0,2))
     ftbz_para[i] = np.mean(
-                   np.abs(np.fft.rfft(B,axis=0)[1:]),
-                   axis=(1,2))
+                    np.abs(np.fft.rfft(B,axis=0))[1:],
+                    axis=(1,2))
+
+
 
 
 

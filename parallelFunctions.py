@@ -91,7 +91,7 @@ def distrib_task(begin, end, division) :
 
     #initialization
     lower = begin
-    jobs = [[None]*2 for _ in range(division)]
+    jobs = [[None]*2 for d in range(division)]
 
     #loop over divisions
     for i in range(division):

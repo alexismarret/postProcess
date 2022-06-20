@@ -43,8 +43,8 @@ def plot2D(data,time,extent,ind,figPath):
     cax = divider.append_axes("right", size="5%", pad=0.1)
     fig.colorbar(im, cax=cax)
 
-    sub1.locator_params(nbins=5,axis='y')
-    sub1.locator_params(nbins=5,axis='x')
+    sub1.locator_params(nbins=20,axis='y')
+    sub1.locator_params(nbins=20,axis='x')
 
     sub1.set_xlabel(r'$x\ [c/\omega_{pi}]$')
     sub1.set_ylabel(r'$y\ [c/\omega_{pi}]$')

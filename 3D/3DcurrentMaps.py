@@ -26,7 +26,8 @@ plt.rcParams.update(params)
 # plt.close("all")
 
 #----------------------------------------------
-run  ="CS3Drmhr"
+# run  ="CS3Drmhr"
+run  ="CS3Dtrack"
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
