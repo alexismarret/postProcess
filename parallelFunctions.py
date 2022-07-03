@@ -60,14 +60,16 @@ def readGridData(dataPath, sl, av, transpose):
 
     with h5py.File(dataPath,"r") as f:
 
+        key = list(f.keys())[-1]
+
         #read slice of data, average, then transpose if needed
         if av!=None:
-            if transpose: return np.mean(f[list(f.keys())[-1]][sl], axis=av).T
-            else:         return np.mean(f[list(f.keys())[-1]][sl], axis=av)
+            if transpose: return np.mean(f[key][sl], axis=av).T
+            else:         return np.mean(f[key][sl], axis=av)
 
         else:
-            if transpose: return f[list(f.keys())[-1]][sl].T
-            else:         return f[list(f.keys())[-1]][sl]
+            if transpose: return f[key][sl].T
+            else:         return f[key][sl]
 
 
 #--------------------------------------------------------------

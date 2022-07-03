@@ -44,20 +44,22 @@ st = slice(None)
 time = o.getTimeAxis()[st]
 
 #----------------------------------------------
-path = o.path+"/plots/Utr"
+path = o.path+"/plots/Ux"
 o.setup_dir(path)
 
 #----------------------------------------------
 fig, (sub1) = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
 
-data = np.sqrt(o.getUfluid(time[0], species, "y", sl=sl, parallel=False)**2 +
-               o.getUfluid(time[0], species, "z", sl=sl, parallel=False)**2)
+# data = np.sqrt(o.getUfluid(time[0], species, "y", sl=sl, parallel=False)**2 +
+#                o.getUfluid(time[0], species, "z", sl=sl, parallel=False)**2)
+
+data = o.getUfluid(time[0], species, "x", sl=sl, parallel=False)
 
 im=sub1.imshow(data.T,
                extent=extent,origin="lower",
                aspect=1,
                cmap="jet",
-               vmin = 0, vmax = 0.2,
+               vmin = 0.2, vmax = 0.5,
                interpolation="None")
 
 divider = make_axes_locatable(sub1)
@@ -94,8 +96,11 @@ for i in range(len(time)):
                     verticalalignment='bottom',
                     transform=sub1.transAxes)
 
-    data = np.sqrt(o.getUfluid(time[i], species, "y", sl=sl, parallel=False)**2 +
-                   o.getUfluid(time[i], species, "z", sl=sl, parallel=False)**2)
+    # data = np.sqrt(o.getUfluid(time[i], species, "y", sl=sl, parallel=False)**2 +
+    #                o.getUfluid(time[i], species, "z", sl=sl, parallel=False)**2)
+
+    data = o.getUfluid(time[i], species, "x", sl=sl, parallel=False)
+
     im.set_array(data.T)
 
     plt.savefig(path+"/plot-{i}-time-{t}.png".format(i=i,t=time[i]),dpi="figure")

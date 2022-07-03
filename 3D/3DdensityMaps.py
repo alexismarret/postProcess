@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Fri Jun 17 14:09:24 2022
+Created on Tue Jun 21 16:55:31 2022
 
 @author: alexis
 """
+
 
 #----------------------------------------------
 import osiris
@@ -26,15 +27,16 @@ plt.rcParams.update(params)
 
 #----------------------------------------------
 run  ="CS3Dtrack"
-# run  ="CS3D_noKink"
 
 o = osiris.Osiris(run,spNorm="iL")
+
+species="iL"
+charge = np.sign(o.rqm[o.sIndex(species)])
 
 sx = slice(None,None,1)
 sy = slice(None,None,1)
 sz = slice(None,None,1)
-sl = (sx,sy,sz)
-av = 1  #average along x direction
+sl = (0,sy,sz)
 
 x     = o.getAxis("x")[sx]
 y     = o.getAxis("y")[sy]
@@ -45,7 +47,7 @@ st = slice(None)
 time = o.getTimeAxis()[st]
 
 #----------------------------------------------
-path = o.path+"/plots/Ex"
+path = o.path+"/plots/n_i"
 o.setup_dir(path)
 
 #----------------------------------------------
@@ -54,14 +56,14 @@ fig, (sub1) = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
 # data = np.sqrt(o.getE(time[0], "y", sl=sl, parallel=False)**2 +
 #                o.getE(time[0], "z", sl=sl, parallel=False)**2)
 
-data = o.getE(time[0], "x", sl=sl, av=av, parallel=False)
+data = o.getCharge(time[0], species, sl=sl, parallel=False)*charge
 
 im=sub1.imshow(data.T,
                extent=extent,origin="lower",
                aspect=1,
-               cmap="bwr",
-               vmin = -0.02, vmax = 0.02,
-               interpolation="None")
+               cmap="jet",
+               vmin = 0.1, vmax = 1,
+               interpolation="bicubic")
 
 divider = make_axes_locatable(sub1)
 cax = divider.append_axes("right", size="5%", pad=0.1)
@@ -99,7 +101,7 @@ for i in range(len(time)):
 
     # data = np.sqrt(o.getE(time[i], "y", sl=sl, parallel=False)**2 +
     #                o.getE(time[i], "z", sl=sl, parallel=False)**2)
-    data = o.getE(time[i], "x", sl=sl, av=av, parallel=False)
+    data = o.getCharge(time[i], species, sl=sl, parallel=False)*charge
 
     im.set_array(data.T)
 

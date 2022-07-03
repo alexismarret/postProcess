@@ -27,13 +27,16 @@ plt.rcParams.update(params)
 
 #----------------------------------------------
 # run  ="CS3Drmhr"
-run  ="CS3Dtrack"
+# run  ="CS3Dtrack"
+run  ="CS3D_noKink"
+
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
 sy = slice(None,None,1)
 sz = slice(None,None,1)
-sl = (0,sy,sz)
+sl = (sx,sy,sz)
+av = 1
 
 x     = o.getAxis("x")[sx]
 y     = o.getAxis("y")[sy]
@@ -50,7 +53,7 @@ o.setup_dir(path)
 #----------------------------------------------
 fig, (sub1) = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
 
-data = o.getTotCurrent(time[0], "x", sl=sl, parallel=False)
+data = o.getTotCurrent(time[0], "x", sl=sl, av=av, parallel=False)
 
 im=sub1.imshow(data.T,
                extent=extent,origin="lower",
@@ -93,7 +96,7 @@ for i in range(len(time)):
                     verticalalignment='bottom',
                     transform=sub1.transAxes)
 
-    data = o.getTotCurrent(time[i], "x", sl=sl, parallel=False)
+    data = o.getTotCurrent(time[i], "x", sl=sl, av=av, parallel=False)
     im.set_array(data.T)
 
     plt.savefig(path+"/plot-{i}-time-{t}.png".format(i=i,t=time[i]),dpi="figure")

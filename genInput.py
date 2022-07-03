@@ -17,7 +17,7 @@ Nnodes = 512
 NCPUperNodes = 64
 Nthreads = 4
 
-Ncell = np.array([1024,1024,1024])
+Ncell = np.array([128,512,512])
 duration = 1000              #in units of 1/w_pi
 
 v  = 0.5                    #velocity in units of c (=beta)
@@ -25,7 +25,7 @@ n0 = 0.5     #density in proper frame
 T  = 1e-6    #in units of me * c^2 (=511 KeV) in rest frame
 alfMach = 20   #wanted Alfvenic Mach number
 B_angle = 80  #angle between x axis and B in degrees in (x,y) plane
-mu = 64.
+mu = 32.
 
 dx = 1/2      #in units of c/w_pe
 dy = 1/2

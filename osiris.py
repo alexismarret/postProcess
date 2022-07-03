@@ -24,11 +24,10 @@ import time as ti
 class Osiris:
 
     #--------------------------------------------------------------
-    def __init__(self, run, spNorm=None, avg=False, nbrCores=6):
+    def __init__(self, run, spNorm=None, nbrCores=6):
 
         self.path = os.environ.get("OSIRIS_RUN_DIR") + "/" + run
         self.allRuns = np.sort(os.listdir(os.environ.get("OSIRIS_RUN_DIR")))
-        self.avg = avg     #if true, assume all grid diagnostics are averaged
         self.nbrCores = nbrCores
 
         self.parseInput(run)
@@ -322,18 +321,18 @@ class Osiris:
         if type(sl) in {slice,int}: sl = (sl,)
         for k,s in enumerate(sl): slices[k]=s
 
-        #invert slices because of needed transposition
-        #slices performance can be worse than reading everything
-        #does not support list of unordered indices
-        if transpose: slices = tuple(slices)[::-1]
-        else:         slices = tuple(slices)
-
         #adjust axis average, reversed because of transposition
         #av input can be 1,2,3 corresponding to spatial axis only
         if av!=None:
             if type(av)==int: av = (av,)
             av = tuple((a-1 for a in av))
-            if transpose: av = self.revertAx(av)
+            if transpose: av = self.revertAx(av,slices)
+
+        #invert slices because of needed transposition
+        #slices performance can be worse than reading everything
+        #does not support list of unordered indices
+        if transpose: slices = tuple(slices)[::-1]
+        else:         slices = tuple(slices)
 
         #create inputs
         it = ((dataPath + p, slices, av, transpose) for p in np.take(sorted(os.listdir(dataPath)), index))
@@ -463,17 +462,49 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def getBoundPhaseSpace(self, species):
+    def getBoundPhaseSpace(self, species, direction, comp, index=0):
 
-        #path to any of the folder in phasespace diag of the species
-        dataPath = glob.glob(self.path+"/MS/PHA/"+
-                           os.listdir(self.path+"/MS/PHA")[0]+"/"+species+"/*")[0]
+        if    direction=="x": l = "x1"
+        elif  direction=="y": l = "x2"
+        elif  direction=="z": l = "x3"
+
+        if   comp=="x": p = "p1"
+        elif comp=="y": p = "p2"
+        elif comp=="z": p = "p3"
+        elif comp=="g": p = "gamma"
+
+        key = p+l
+
+        #path to phasespace diag of the species
+        dataPath = (self.path+"/MS/PHA/"+key+"/"+species+"/"+
+                              np.sort(os.listdir(self.path+"/MS/PHA/"+key+"/"+species))[index])
 
         with h5py.File(dataPath,"r") as f:
             boundX = f['AXIS']["AXIS1"][()]
             boundY = f["AXIS"]["AXIS2"][()]
 
         return boundX, boundY
+
+
+    #--------------------------------------------------------------
+    def revertAx(self, av, sl):
+
+        if av==None:
+            return (None,)
+
+        else:
+            #number of fully sliced direction
+            Nav = len([s for s in sl if type(s)==int])
+
+            av = list(av)
+            for i in range(len(av)):
+
+                if av[i] == 0:
+                    av[i] = self.ndim-1-Nav
+                elif (av[i] == 1 and Nav!=0) or av[i] == 2:
+                    av[i] = 0
+
+            return tuple(av)
 
 
     #--------------------------------------------------------------
@@ -696,19 +727,94 @@ class Osiris:
     def projectVec(self, vx, vy, vz, ex, ey, ez, comp):
 
         #assumes e!= (0,1,0)
-        Ix, Iy, Iz = 0., 1., 0.
+        Ix = 0.
+        Iy = 1.
+        Iz = 0.
 
         #project vector 'v' in basis 'e' along direction 'comp'
         if comp==0:   #parallel to 'e'
             baseX, baseY, baseZ = ex, ey, ez
 
-        else: #e x unit vector I
+        else: #e x unit vector I, perp1 to e
             baseX, baseY, baseZ = self.crossProduct(ex, ey, ez, Ix, Iy, Iz)
 
-            if comp==2: #e x (e x unit vector I)
+            if comp==2: #e x (e x unit vector I), perp2 to e
                 baseX, baseY, baseZ = self.crossProduct(ex, ey, ez, baseX, baseY, baseZ)
 
+
         return (vx*baseX + vy*baseY + vz*baseZ) / np.sqrt(baseX**2+baseY**2+baseZ**2)
+
+
+    #--------------------------------------------------------------
+    def helmholtzDecompose(self, x, y, z, comp, timeVal, sl=slice(None)):
+
+        #https://github.com/shixun22/helmholtz/blob/master/helmholtz.py
+        #reshape is not clear to me
+
+        kx = np.fft.fftfreq(len(x),x[1]-x[0]).reshape(len(x),1,1) *2*np.pi
+        ky = np.fft.fftfreq(len(y),y[1]-y[0]).reshape(len(y),1)   *2*np.pi
+        kz = np.fft.fftfreq(len(z),z[1]-z[0])                     *2*np.pi
+
+
+        import pyfftw
+        pyfftw.config.NUM_THREADS = self.nbrCores
+        pyfftw.config.PLANNER_EFFORT = 'FFTW_ESTIMATE'
+        dtype = 'complex128'
+
+        #fft Ex
+        data = self.getE(timeVal,"x",sl=sl,parallel=False).astype(dtype)
+
+        pyfftw.FFTW(data, data, axes=(0,1,2))()
+        print("a")
+
+        ftdiv = data*kx
+
+        #fft Ey
+        data = self.getE(timeVal,"y",sl=sl,parallel=False).astype(dtype)
+
+        pyfftw.FFTW(data, data, axes=(0,1,2))()
+        ftdiv += data*ky
+        print("b")
+
+        #fft Ez
+        data = self.getE(timeVal,"z",sl=sl,parallel=False).astype(dtype)
+
+        pyfftw.FFTW(data, data, axes=(0,1,2))()
+        ftdiv += data*kz
+        print("c")
+
+        raise ValueError
+
+        k2 = kx**2 + ky**2 + kz**2
+        k2[k2==0] = 1.
+        ftdiv /= k2
+
+        # ftdiv = (np.fft.fftn(vx,out=vx)*kx +
+        #          np.fft.fftn(vy,out=vy)*ky +
+        #          np.fft.fftn(vz,out=vz)*kz) / k2
+
+        print("div done")
+        if   comp==0: return np.fft.ifftn(ftdiv * kx).real
+        elif comp==1: return np.fft.ifftn(ftdiv * ky).real
+        elif comp==2: return np.fft.ifftn(ftdiv * kz).real
+
+
+        """
+        #need imaginary part of compr
+        # check if the solenoidal part really divergence-free
+        sol_x = vx - compr_x
+        sol_y = vy - compr_y
+        sol_z = vz - compr_z
+        div = np.fft.ifftn((np.fft.fftn(sol_x) * kx +
+                            np.fft.fftn(sol_y) * ky +
+                            np.fft.fftn(sol_z) * kz) * 1j * 2.*np.pi)
+        print ('div_solenoidal max:', abs(div).max())
+
+        #to get sol compute vx - compr_x
+        """
+
+
+
 
 
     #--------------------------------------------------------------
@@ -807,6 +913,7 @@ class Osiris:
     def createTagsFile(self, species, outPath, step=None,
                        synth=False, N_CPU=None, Tpart=None):
 
+        #TODO
         if synth:
             # ppcpu = Tpart // N_CPU
             # rmn   = Tpart % N_CPU
@@ -861,7 +968,7 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def writeHDF5(self, data, name, time_series=True):
+    def writeHDF5(self, data, name, timeArray=True, index=0):
 
         dataPath = self.path+"/PP/"+name
 
@@ -869,7 +976,7 @@ class Osiris:
         if not os.path.exists(dataPath): os.makedirs(dataPath)
 
         #multiple files
-        if time_series:
+        if timeArray:
             for i in range(len(data)):
 
                 filePath = dataPath+"/"+name+"-"+str(i).zfill(6)+".h5"
@@ -879,7 +986,7 @@ class Osiris:
 
         #single file
         else:
-            filePath = dataPath+"/"+name+".h5"
+            filePath = dataPath+"/"+name+"-"+str(index).zfill(6)+".h5"
 
             with h5py.File(filePath, 'w') as hf:
                 hf.create_dataset(name, data=data)
@@ -916,45 +1023,7 @@ class Osiris:
 
 
     """
-    #--------------------------------------------------------------
-    def getPhaseSpace(self, time, species, direction, comp, sl=slice(None),
-                      parallel=True, transpose=True):
 
-        if    direction=="x": l = "x1"
-        elif  direction=="y": l = "x2"
-        elif  direction=="z": l = "x3"
-
-        if   comp=="x": p = "p1"
-        elif comp=="y": p = "p2"
-        elif comp=="z": p = "p3"
-        elif comp=="g": p = "gamma"
-
-        dataPath = self.path+"/MS/PHA/"+p+l+"/"+species+"/"
-
-        Pha = self.getOnGrid(time,dataPath,species,sl,None,parallel,transpose)
-
-        return Pha
-    """
-
-
-
-    """
-    #calculate size of sliced array, invert again slices and averaged
-    #axis to order after transposition
-    # G = np.zeros((N,)+self.getSlicedSize(slices[::-1],self.revertAx(av)))
-    #--------------------------------------------------------------
-    def revertAx(self, a):
-
-        if a==None:
-            return (None,)
-        else:
-            val = self.ndim-1
-            a = list(a)
-            for i in range(len(a)):
-                if   a[i] == 0: a[i] = val
-                elif a[i] == val: a[i] = 0
-
-            return tuple(a)
 
 
     #--------------------------------------------------------------

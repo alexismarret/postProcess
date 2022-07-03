@@ -39,7 +39,7 @@ sl = (sx,sp)
 time = o.getTimeAxis(pha=True)[st]
 
 pha = o.getPhaseSpace(time, species, "x", "x", sl=sl)
-boundX, boundY = o.getBoundPhaseSpace(species)
+boundX, boundY = o.getBoundPhaseSpace(species,"x","x",0)
 
 #----------------------------------------------
 fig, (sub1) = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
@@ -61,3 +61,7 @@ fig.colorbar(im, cax=cax)
 
 
 
+
+for i in range(len(time)):
+
+    print(o.getBoundPhaseSpace(species,"x","x",i))
