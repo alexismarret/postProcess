@@ -16,7 +16,6 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from matplotlib.colors import LogNorm
 
 import parallelFunctions as pf
-import gc
 
 #----------------------------------------------
 params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 2,
@@ -51,19 +50,18 @@ for i in range(len(time)):
     #empty memory before next loop to avoid 2x same array size in memory
     print(i)
 
-    compr = o.helmholtzDecompose(x, y, z, comp=0, timeVal=time[i], sl=sl)
+    compr = o.helmholtzDecompose(x, y, z, comp=0, timeVal=time[i])
     o.writeHDF5(compr, "Ecx", timeArray=False, index=i)
     del compr
-    gc.collect()
 
-    # compr = o.helmholtzDecompose(x, y, z, comp=1)
-    # o.writeHDF5(compr, "Ecx", timeArray=False, index=i)
-    # del compr
-    # gc.collect()
+    compr = o.helmholtzDecompose(x, y, z, comp=1, timeVal=time[i])
+    o.writeHDF5(compr, "Ecy", timeArray=False, index=i)
+    del compr
 
-    # compr = o.helmholtzDecompose(x, y, z, comp=2)
-    # o.writeHDF5(compr, "Ecx", timeArray=False, index=i)
-    # del compr
-    # gc.collect()
+    compr = o.helmholtzDecompose(x, y, z, comp=2, timeVal=time[i])
+    o.writeHDF5(compr, "Ecz", timeArray=False, index=i)
+    del compr
+
+
 
 

@@ -16,9 +16,12 @@ import h5py
 import trackParticles as tr
 import parallelFunctions as pf
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import time as ti
 
+# from memory_profiler import profile
+
+import pyfftw
 
 
 class Osiris:
@@ -746,57 +749,70 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def helmholtzDecompose(self, x, y, z, comp, timeVal, sl=slice(None)):
+    # @profile
+    def helmholtzDecompose(self, x, y, z, comp, timeVal):
 
         #https://github.com/shixun22/helmholtz/blob/master/helmholtz.py
-        #reshape is not clear to me
 
+        #reshape is not clear to me
         kx = np.fft.fftfreq(len(x),x[1]-x[0]).reshape(len(x),1,1) *2*np.pi
         ky = np.fft.fftfreq(len(y),y[1]-y[0]).reshape(len(y),1)   *2*np.pi
         kz = np.fft.fftfreq(len(z),z[1]-z[0])                     *2*np.pi
 
+        #configure pyfftw
+        flags=('FFTW_ESTIMATE')
+        nthreads = 4
 
-        import pyfftw
-        pyfftw.config.NUM_THREADS = self.nbrCores
-        pyfftw.config.PLANNER_EFFORT = 'FFTW_ESTIMATE'
-        dtype = 'complex128'
+        #prepare aligned arrays
+        dtype = 'complex64'
+        data  = pyfftw.empty_aligned(self.grid, dtype)
+        ftdiv = pyfftw.empty_aligned(self.grid, dtype)
 
+        #put fft result in input data
+        fft  = pyfftw.FFTW(data,  data,  axes=(0,1,2), direction='FFTW_FORWARD',
+                           threads=nthreads, flags=flags)
+        ifft = pyfftw.FFTW(ftdiv, ftdiv, axes=(0,1,2), direction='FFTW_BACKWARD',
+                           threads=nthreads, flags=flags)
+
+        start = ti.time()
         #fft Ex
-        data = self.getE(timeVal,"x",sl=sl,parallel=False).astype(dtype)
+        data[:]  = self.getE(timeVal,"x",parallel=False)
+        print("1st data",ti.time()-start)
 
-        pyfftw.FFTW(data, data, axes=(0,1,2))()
-        print("a")
-
-        ftdiv = data*kx
+        start = ti.time()
+        ftdiv[:] = fft(data) * kx.astype(dtype)
+        print("1st fft",ti.time()-start)
 
         #fft Ey
-        data = self.getE(timeVal,"y",sl=sl,parallel=False).astype(dtype)
+        data[:]  = self.getE(timeVal,"y",parallel=False)
 
-        pyfftw.FFTW(data, data, axes=(0,1,2))()
-        ftdiv += data*ky
-        print("b")
+        start = ti.time()
+        ftdiv   += fft(data) * ky
+        print("2nd fft",ti.time()-start)
 
         #fft Ez
-        data = self.getE(timeVal,"z",sl=sl,parallel=False).astype(dtype)
+        data[:]  = self.getE(timeVal,"z",parallel=False)
 
-        pyfftw.FFTW(data, data, axes=(0,1,2))()
-        ftdiv += data*kz
-        print("c")
+        start = ti.time()
+        ftdiv   += fft(data) * kz
+        print("3rd fft",ti.time()-start)
 
-        raise ValueError
+        start = ti.time()
+        if   comp==0: ftdiv *= kx / (kx**2 + ky**2 + kz**2)
+        elif comp==1: ftdiv *= ky / (kx**2 + ky**2 + kz**2)
+        elif comp==2: ftdiv *= kz / (kx**2 + ky**2 + kz**2)
+        print("coef",ti.time()-start)
 
-        k2 = kx**2 + ky**2 + kz**2
-        k2[k2==0] = 1.
-        ftdiv /= k2
+        #null k vector is NaN, set to 0
+        ftdiv[0,0,0]=0.
 
-        # ftdiv = (np.fft.fftn(vx,out=vx)*kx +
-        #          np.fft.fftn(vy,out=vy)*ky +
-        #          np.fft.fftn(vz,out=vz)*kz) / k2
+        start = ti.time()
+        #perform inverse fft
+        ifft(ftdiv)
+        print("ifft",ti.time()-start)
 
-        print("div done")
-        if   comp==0: return np.fft.ifftn(ftdiv * kx).real
-        elif comp==1: return np.fft.ifftn(ftdiv * ky).real
-        elif comp==2: return np.fft.ifftn(ftdiv * kz).real
+        return ftdiv.real
+
 
 
         """
@@ -968,7 +984,7 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def writeHDF5(self, data, name, timeArray=True, index=0):
+    def writeHDF5(self, data, name, timeArray=True, index=0, dtype='float32'):
 
         dataPath = self.path+"/PP/"+name
 
@@ -982,14 +998,14 @@ class Osiris:
                 filePath = dataPath+"/"+name+"-"+str(i).zfill(6)+".h5"
 
                 with h5py.File(filePath, 'w') as hf:
-                    hf.create_dataset(name, data=data[i])
+                    hf.create_dataset(name, data=data[i], dtype=dtype)
 
         #single file
         else:
             filePath = dataPath+"/"+name+"-"+str(index).zfill(6)+".h5"
 
             with h5py.File(filePath, 'w') as hf:
-                hf.create_dataset(name, data=data)
+                hf.create_dataset(name, data=data, dtype=dtype)
 
         return
 
