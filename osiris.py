@@ -13,15 +13,14 @@ import numpy as np
 import operator
 
 import h5py
-import trackParticles as tr
 import parallelFunctions as pf
 
-# import matplotlib.pyplot as plt
-import time as ti
+from scipy import signal
+import pyfftw
 
+# import time as ti
 # from memory_profiler import profile
 
-import pyfftw
 
 
 class Osiris:
@@ -61,9 +60,7 @@ class Osiris:
         Ns=0
         s=0
         cat=""
-
         for l in inputs:
-
             #remove brackets, spaces, line breaks
             l = l.replace("{","").replace("}","").replace(" ","").replace("\n","")
 
@@ -86,36 +83,21 @@ class Osiris:
 
                 #---------------------------
                 #grid parameters
-                if "nx_p" in l:
-                    self.grid = np.int_(value.split(","))
-
-                elif "xmin" in l:
-                    self.gridPosMin = np.float_(value.split(","))
-
-                elif "xmax" in l:
-                    self.gridPosMax = np.float_(value.split(","))
+                if   "nx_p" in l: self.grid = np.int_(value.split(","))
+                elif "xmin" in l: self.gridPosMin = np.float_(value.split(","))
+                elif "xmax" in l: self.gridPosMax = np.float_(value.split(","))
 
                 #---------------------------
                 #time parameters
-                elif "dt=" in l:
-                    self.dt = float(value)
-
-                elif "ndump=" in l:
-                    self.ndump = int(value)
-
-                elif "tmin=" in l:
-                    self.tmin = float(value)
-
-                elif "tmax=" in l:
-                    self.tmax = float(value)
+                elif "dt=" in l:    self.dt = float(value)
+                elif "ndump=" in l: self.ndump = int(value)
+                elif "tmin=" in l:  self.tmin = float(value)
+                elif "tmax=" in l:  self.tmax = float(value)
 
                 #---------------------------
                 #EM parameters
-                elif "init_b0" in l:
-                    self.init_b0 = np.float_(value.split(","))
-
-                elif "ndump_fac_ene_int=" in l:
-                    self.ndump_fac_ene_int = int(value)
+                elif "init_b0" in l:            self.init_b0 = np.float_(value.split(","))
+                elif "ndump_fac_ene_int=" in l: self.ndump_fac_ene_int = int(value)
 
                 #---------------------------
                 #particles parameters
@@ -146,43 +128,22 @@ class Osiris:
                     if self.ppc[s] != 0: s+=1
                     self.ppc[s] = np.prod(np.int_(value.split(",")))
 
-                elif "density=" in l:
-                    self.n0[s] = float(value)
-
-                elif "ufl(" in l:
-                    self.ufl[s] = np.float_(value.split(","))
-
-                elif "uth(" in l:
-                    self.uth[s] = np.float_(value.split(","))
+                elif "density=" in l: self.n0[s] = float(value)
+                elif "ufl(" in l: self.ufl[s]    = np.float_(value.split(","))
+                elif "uth(" in l: self.uth[s]    = np.float_(value.split(","))
 
                 #---------------------------
                 #ndump parameters
                 elif cat=="diag_species":
-                    if "ndump_fac=" in l:
-                        self.ndump_facP[s] = int(value)
+                    if   "ndump_fac=" in l:        self.ndump_facP[s] = int(value)
+                    elif "ndump_fac_ene=" in l:    self.ndump_fac_ene[s] = int(value)
+                    elif "ndump_fac_raw=" in l:    self.ndump_fac_raw[s] = int(value)
+                    elif "ndump_fac_pha" in l:     self.ndump_fac_pha[s] = int(value)
+                    elif "ndump_fac_tracks=" in l: self.ndump_fac_tracks[s] = int(value)
+                    elif "niter_tracks=" in l:     self.niter_tracks[s] = int(value)
 
-                    elif "ndump_fac_ene=" in l:
-                        self.ndump_fac_ene[s] = int(value)
-
-                    elif "ndump_fac_raw=" in l:
-                        self.ndump_fac_raw[s] = int(value)
-
-                    elif "ndump_fac_pha" in l:
-                        self.ndump_fac_pha[s] = int(value)
-
-                    elif "ndump_fac_tracks=" in l:
-                        self.ndump_fac_tracks[s] = int(value)
-
-                    elif "niter_tracks=" in l:
-                        self.niter_tracks[s] = int(value)
-
-                elif cat=="diag_current":
-                    if "ndump_fac=" in l:
-                        self.ndump_facC = int(value)
-
-                elif cat=="diag_emf":
-                    if "ndump_fac=" in l:
-                        self.ndump_facF = int(value)
+                elif (cat=="diag_current") and ("ndump_fac=" in l): self.ndump_facC = int(value)
+                elif (cat=="diag_emf")     and ("ndump_fac=" in l): self.ndump_facF = int(value)
 
         return
 
@@ -367,7 +328,7 @@ class Osiris:
     #--------------------------------------------------------------
     def getRaw(self, time, species, key, parallel=True):
 
-        #['SIMULATION', 'ene', 'p1', 'p2', 'p3', 'q', 'tag', 'x1', 'x2', 'x3']
+        #key = ['SIMULATION', 'ene', 'p1', 'p2', 'p3', 'q', 'tag', 'x1', 'x2', 'x3']
 
         dataPath = self.path+"/MS/RAW/"+species+"/"
 
@@ -384,7 +345,7 @@ class Osiris:
         #create inputs
         it = ((dataPath + p, key) for p in np.take(sorted(os.listdir(dataPath)), index))
 
-        #multiple values read, very heavy in memory because of irregular data shape
+        #multiple values read, potentially very heavy in memory because of possible irregular data shape
         if N>1:
             #parallel reading of data
             if parallel:
@@ -748,89 +709,125 @@ class Osiris:
         return (vx*baseX + vy*baseY + vz*baseZ) / np.sqrt(baseX**2+baseY**2+baseZ**2)
 
 
+
     #--------------------------------------------------------------
     # @profile
-    def helmholtzDecompose(self, x, y, z, comp, timeVal):
+    def helmholtzDecompose(self, time, comp, check=False):
 
         #https://github.com/shixun22/helmholtz/blob/master/helmholtz.py
+        #reuse same data and ftdiv arrays for reduced memory usage
+        #computes the compressive (curl E=0, dB/dt=0, E // k component of the field)
+        #E_c = IFT[ (FT[E].k) * k / k^2 ]
 
-        #reshape is not clear to me
-        kx = np.fft.fftfreq(len(x),x[1]-x[0]).reshape(len(x),1,1) *2*np.pi
-        ky = np.fft.fftfreq(len(y),y[1]-y[0]).reshape(len(y),1)   *2*np.pi
-        kz = np.fft.fftfreq(len(z),z[1]-z[0])                     *2*np.pi
+        #-----------------------------------
+        #configure pyfftw and
+        flags = ('FFTW_ESTIMATE','FFTW_DESTROY_INPUT')
+        nthreads = 4                #4 seems to be the sweet spot
+        dtype = 'complex64'         #complex128 is best, but huge memory usage
 
-        #configure pyfftw
-        flags=('FFTW_ESTIMATE')
-        nthreads = 4
+        timeSeries = (type(time)==np.ndarray)
+        if timeSeries: dataShape = np.insert(self.grid,0,len(time))
+        else:          dataShape = self.grid
 
-        #prepare aligned arrays
-        dtype = 'complex64'
-        data  = pyfftw.empty_aligned(self.grid, dtype)
-        ftdiv = pyfftw.empty_aligned(self.grid, dtype)
+        #prepare aligned unitialized arrays, random values
+        data  = pyfftw.empty_aligned(dataShape, dtype, n=nthreads)
+        ftdiv = pyfftw.empty_aligned(dataShape, dtype, n=nthreads)
 
-        #put fft result in input data
-        fft  = pyfftw.FFTW(data,  data,  axes=(0,1,2), direction='FFTW_FORWARD',
-                           threads=nthreads, flags=flags)
-        ifft = pyfftw.FFTW(ftdiv, ftdiv, axes=(0,1,2), direction='FFTW_BACKWARD',
-                           threads=nthreads, flags=flags)
+        #plan fft in place along spatial axis
+        ax = np.array([-1,-2,-3])[range(self.ndim)]
+        fft  = pyfftw.FFTW(data,  data,  axes=ax, direction='FFTW_FORWARD',  flags=flags, threads=nthreads)
+        ifft = pyfftw.FFTW(ftdiv, ftdiv, axes=ax, direction='FFTW_BACKWARD', flags=flags, threads=nthreads)
 
-        start = ti.time()
-        #fft Ex
-        data[:]  = self.getE(timeVal,"x",parallel=False)
-        print("1st data",ti.time()-start)
+        #-----------------------------------
+        dimkx = (self.grid[0],)+(1,)*(self.ndim-1)   #equivalent to [:,None,None] in 3D
+        kx = np.fft.fftfreq(self.grid[0],self.meshSize[0]) .reshape(dimkx)  #no need to multiply by 2*np.pi since normalized
+        data[:]  = self.getE(time,"x")   #assign field value to real part of data array, imaginary part is 0
+        ftdiv[:] = fft(data) * kx.astype(dtype)  #fft Ex, specify type to avoid copy
 
-        start = ti.time()
-        ftdiv[:] = fft(data) * kx.astype(dtype)
-        print("1st fft",ti.time()-start)
+        #-----------------------------------
+        if self.ndim>1:  #2D
+            dimky = (self.grid[1],)+(1,)*(self.ndim-2)  #[None,:,None] in 3D
+            ky = np.fft.fftfreq(self.grid[1],self.meshSize[1]) .reshape(dimky)
+            data[:]  = self.getE(time,"y")
+            ftdiv   += fft(data) * ky  #fft Ey, no need to specify type anymore
 
-        #fft Ey
-        data[:]  = self.getE(timeVal,"y",parallel=False)
+            #-----------------------------------
+            if self.ndim>2:  #3D
+                kz = np.fft.fftfreq(self.grid[2],self.meshSize[2])
+                data[:]  = self.getE(time,"z")
+                ftdiv   += fft(data) * kz  #fft Ez
 
-        start = ti.time()
-        ftdiv   += fft(data) * ky
-        print("2nd fft",ti.time()-start)
+        #handle lower dimensions
+        if self.ndim<2: ky = 0.
+        if self.ndim<3: kz = 0.
 
-        #fft Ez
-        data[:]  = self.getE(timeVal,"z",parallel=False)
-
-        start = ti.time()
-        ftdiv   += fft(data) * kz
-        print("3rd fft",ti.time()-start)
-
-        start = ti.time()
-        if   comp==0: ftdiv *= kx / (kx**2 + ky**2 + kz**2)
-        elif comp==1: ftdiv *= ky / (kx**2 + ky**2 + kz**2)
-        elif comp==2: ftdiv *= kz / (kx**2 + ky**2 + kz**2)
-        print("coef",ti.time()-start)
+        ftdiv /= (kx**2 + ky**2 + kz**2)
 
         #null k vector is NaN, set to 0
-        ftdiv[0,0,0]=0.
+        #handle multiple times or single one, and dimensionality
+        if timeSeries: ftdiv[(slice(None),)+(0,)*self.ndim]=0.
+        else:          ftdiv[               (0,)*self.ndim]=0.
 
-        start = ti.time()
-        #perform inverse fft
-        ifft(ftdiv)
-        print("ifft",ti.time()-start)
+        #-----------------------------------
+        #check decomposition, memory heavy
+        if check:
+
+            Ex = self.getE(time,"x")
+            Ey = self.getE(time,"y")
+            Ez = self.getE(time,"z")
+
+            Ecx = np.fft.ifftn(ftdiv * kx)
+            Ecy = np.fft.ifftn(ftdiv * ky)
+            Ecz = np.fft.ifftn(ftdiv * kz)
+
+            Erx = Ex - Ecx
+            Ery = Ey - Ecy
+            Erz = Ez - Ecz
+
+            Erx_fromFT = np.fft.ifftn(np.fft.fftn(Ex) - ftdiv * kx)
+            Ery_fromFT = np.fft.ifftn(np.fft.fftn(Ey) - ftdiv * ky)
+            Erz_fromFT = np.fft.ifftn(np.fft.fftn(Ez) - ftdiv * kz)
+
+            i2pi = 1j * 2*np.pi #i in div and rot operator in fourier space and 2pi factor in k
+            #-----------------------------------
+            divR = np.fft.ifftn((np.fft.fftn(Erx) * kx +
+                                 np.fft.fftn(Ery) * ky +
+                                 np.fft.fftn(Erz) * kz) * i2pi)
+
+            divC = np.fft.ifftn((np.fft.fftn(Ecx) * kx +
+                                 np.fft.fftn(Ecy) * ky +
+                                 np.fft.fftn(Ecz) * kz) * i2pi)
+
+            rotR_fx, rotR_fy, rotR_fz = self.crossProduct(kx, ky, kz, np.fft.fftn(Erx), np.fft.fftn(Ery), np.fft.fftn(Erz))
+            rotC_fx, rotC_fy, rotC_fz = self.crossProduct(kx, ky, kz, np.fft.fftn(Ecx), np.fft.fftn(Ecy), np.fft.fftn(Ecz))
+
+            rotRx, rotRy, rotRz = np.fft.ifftn(rotR_fx *i2pi), np.fft.ifftn(rotR_fy *i2pi), np.fft.ifftn(rotR_fz *i2pi)
+            rotCx, rotCy, rotCz = np.fft.ifftn(rotC_fx *i2pi), np.fft.ifftn(rotC_fy *i2pi), np.fft.ifftn(rotC_fz *i2pi)
+
+            print ('div_rotational max:',  np.max(np.abs(divR)))
+            print ('rot_rotational max:',  np.max(np.abs(rotRx)),
+                                           np.max(np.abs(rotRy)),
+                                           np.max(np.abs(rotRz)))
+
+            print ('div_compressive max:', np.max(np.abs(divC)))
+            print ('rot_compressive max:', np.max(np.abs(rotCx)),
+                                           np.max(np.abs(rotCy)),
+                                           np.max(np.abs(rotCz)))
+
+            print('Er-Er_fromFT:', np.max(np.abs(Erx-Erx_fromFT)),
+                                   np.max(np.abs(Ery-Ery_fromFT)),
+                                   np.max(np.abs(Erz-Erz_fromFT)))
+
+            # import sys
+            # sys.exit()
+
+        #-----------------------------------
+        #perform inverse fft, one component per function call to reduce memory usage
+        if   comp==0: ifft(ftdiv * kx)
+        elif comp==1: ifft(ftdiv * ky)
+        elif comp==2: ifft(ftdiv * kz)
 
         return ftdiv.real
-
-
-
-        """
-        #need imaginary part of compr
-        # check if the solenoidal part really divergence-free
-        sol_x = vx - compr_x
-        sol_y = vy - compr_y
-        sol_z = vz - compr_z
-        div = np.fft.ifftn((np.fft.fftn(sol_x) * kx +
-                            np.fft.fftn(sol_y) * ky +
-                            np.fft.fftn(sol_z) * kz) * 1j * 2.*np.pi)
-        print ('div_solenoidal max:', abs(div).max())
-
-        #to get sol compute vx - compr_x
-        """
-
-
-
 
 
     #--------------------------------------------------------------
@@ -1023,6 +1020,7 @@ class Osiris:
 
             #read unordered data, order it and dump to disk for next time
             #first dimension is macroparticles, second is time
+            import trackParticles as tr
             data = tr.readUnorderedTrackData(self.path, species, key)
 
             #usually many time steps but few macroparticles
@@ -1035,7 +1033,30 @@ class Osiris:
             return f[key][sl]
 
 
+    #--------------------------------------------------------------
+    def low_pass_filter(self, data, cutoff, axis, res=None, timeSeries=False):
 
+        #low pass filter, modify data in place
+        #axis can be 1,2,3 corresponding to spatial axis only
+        #0 < cutoff frequency < 1/(2*res)
+
+        if res is None: res = self.meshSize
+        for arr in (cutoff,res,axis):
+            if type(arr) not in {list,tuple,np.ndarray}: arr = (arr,)
+
+        order = 2
+
+        #filter over axis iteratively
+        #indexes could be wrong if array is already sliced and resolution is different along axis
+        for i in axis:
+            # Get the filter coefficients
+            sos = signal.butter(order, Wn = cutoff[i-1],  fs=1./res[i-1],
+                                btype='lowpass', output='sos')
+            #filter data in place
+            if timeSeries: data[:] = signal.sosfiltfilt(sos, data, axis=i)
+            else:          data[:] = signal.sosfiltfilt(sos, data, axis=i-1)
+
+        return
 
 
     """

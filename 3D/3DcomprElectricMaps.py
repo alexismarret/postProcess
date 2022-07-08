@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Apr 20 17:10:53 2022
+Created on Mon Jul  4 17:28:21 2022
 
 @author: alexis
 """
@@ -26,40 +26,44 @@ plt.rcParams.update(params)
 # plt.close("all")
 
 #----------------------------------------------
-run  ="CS3Dtrack"
-# run  ="testAvgDiag"
+# run  ="CS3Dtrack"
+# run = 'CS2DrmhrTrack'
+run  ="CS3D_noKink"
+
 o = osiris.Osiris(run,spNorm="iL")
-species="iL"
-comp = "x"
 
 sx = slice(None,None,1)
 sy = slice(None,None,1)
 sz = slice(None,None,1)
 sl = (0,sy,sz)
+# av = 1  #average along x direction
+# av=None
 
 x     = o.getAxis("x")[sx]
 y     = o.getAxis("y")[sy]
-z     = o.getAxis("z")[sz]
-extent=(min(y),max(y),min(z),max(z))
+# z     = o.getAxis("z")[sz]
+extent=(min(y),max(y),min(x),max(x))
 
-st = slice(None,None,1)
+st = slice(None)
 time = o.getTimeAxis()[st]
-mu = o.rqm[o.sIndex(species)]
+
+species='iL'
 
 #----------------------------------------------
-path = o.path+"/plots/TiX"
+path = o.path+"/plots/Ecx"
 o.setup_dir(path)
 
 #----------------------------------------------
 fig, (sub1) = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
 
-data = o.getUth(time[0], species, comp, sl=sl)**2 * mu
+#curl free, longitudinal, compressive
+data = o.getNewData(time[0], "Ecx", sl=sl)
 
 im=sub1.imshow(data.T,
                extent=extent,origin="lower",
                aspect=1,
-               cmap="jet",
-               norm=LogNorm(vmin=1e-1,vmax=1e1),
+               cmap="bwr",
+                vmin = -0.1, vmax = 0.1,
                interpolation="None")
 
 divider = make_axes_locatable(sub1)
@@ -73,7 +77,7 @@ sub1.set_xlabel(r'$y\ [c/\omega_{pi}]$')
 sub1.set_ylabel(r'$z\ [c/\omega_{pi}]$')
 
 sub1.text(1, 1.05,
-          r"$T_{iL}\ [m_ec^2]$",
+          r"$E_{cx}\ [E_0]$",
           horizontalalignment='right',
           verticalalignment='bottom',
           transform=sub1.transAxes)
@@ -96,7 +100,10 @@ for i in range(len(time)):
                     verticalalignment='bottom',
                     transform=sub1.transAxes)
 
-    data = o.getUth(time[i], species, comp, sl=sl)**2 * mu
+    # data = np.sqrt(o.getE(time[i], "y", sl=sl, parallel=False)**2 +
+    #                o.getE(time[i], "z", sl=sl, parallel=False)**2)
+    data = o.getNewData(time[i], "Ecx", sl=sl)
+
     im.set_array(data.T)
 
     plt.savefig(path+"/plot-{i}-time-{t}.png".format(i=i,t=time[i]),dpi="figure")

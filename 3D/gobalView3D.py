@@ -22,8 +22,8 @@ plt.rcParams.update(params)
 # plt.close("all")
 
 #----------------------------------------------
-# run  ="CS3D_noKink"
-run = "CS3Dtrack"
+run  ="CS3D_noKink"
+# run = "CS3Dtrack"
 # run ="CS3Drmhr"
 o = osiris.Osiris(run,spNorm="iL",nbrCores=6)
 
@@ -82,15 +82,15 @@ sub1.plot(time,TiLy,color="r",label=r"$T_{y|iL}$",linestyle="dashed")
 sub1.plot(time,TeLx,color="b",label=r"$T_{x|eL}$")
 sub1.plot(time,TeLy,color="b",label=r"$T_{y|eL}$",linestyle="dashed")
 
-# sub1.plot(time,Jtot,color="orange",label=r"$J_y$")
+sub1.plot(time,Jtot,color="orange",label=r"$J_y$")
 
-# sub1.plot(time,Ex,color="k",linestyle="dashed",label=r"$\mathcal{E}_{Ex}$")
-# sub1.plot(time,Ey,color="k",linestyle="dashdot",label=r"$\mathcal{E}_{Ey}$")
-# sub1.plot(time,Ez,color="k",linestyle="dotted",label=r"$\mathcal{E}_{Ez}$")
+sub1.plot(time,Ex,color="k",linestyle="dashed",label=r"$\mathcal{E}_{Ex}$")
+sub1.plot(time,Ey,color="k",linestyle="dashdot",label=r"$\mathcal{E}_{Ey}$")
+sub1.plot(time,Ez,color="k",linestyle="dotted",label=r"$\mathcal{E}_{Ez}$")
 
-# sub1.plot(time,Bx,color="gray",linestyle="dashed",label=r"$\mathcal{E}_{Bx}$")
-# sub1.plot(time,By,color="gray",linestyle="dashdot",label=r"$\mathcal{E}_{By}$")
-# sub1.plot(time,Bz,color="gray",linestyle="dotted",label=r"$\mathcal{E}_{Bz}$")
+sub1.plot(time,Bx,color="gray",linestyle="dashed",label=r"$\mathcal{E}_{Bx}$")
+sub1.plot(time,By,color="gray",linestyle="dashdot",label=r"$\mathcal{E}_{By}$")
+sub1.plot(time,Bz,color="gray",linestyle="dotted",label=r"$\mathcal{E}_{Bz}$")
 
 sub1.set_xlim(time[0],time[-1])
 sub1.set_ylim(1e-3,5)
@@ -98,6 +98,6 @@ sub1.set_ylim(1e-3,5)
 sub1.set_xlabel(r"$t\ [\omega_{pi}^{-1}]$")
 sub1.legend(frameon=False,ncol=4)
 
-# sub1.set_yscale("log")
-plt.savefig(o.path+"/plots/globalView.png",dpi="figure")
+sub1.set_yscale("log")
+plt.savefig(o.path+"/plots/globalViewLog.png",dpi="figure")
 

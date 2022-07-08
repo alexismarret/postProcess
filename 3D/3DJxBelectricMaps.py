@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Apr 20 17:10:53 2022
+Created on Wed Jul  6 17:59:07 2022
 
 @author: alexis
 """
-
 
 #----------------------------------------------
 import osiris
@@ -27,39 +26,48 @@ plt.rcParams.update(params)
 
 #----------------------------------------------
 run  ="CS3Dtrack"
-# run  ="testAvgDiag"
+run  ="CS3D_noKink"
+
 o = osiris.Osiris(run,spNorm="iL")
-species="iL"
-comp = "x"
 
 sx = slice(None,None,1)
 sy = slice(None,None,1)
 sz = slice(None,None,1)
 sl = (0,sy,sz)
+# av = 1  #average along x direction
+av = None
 
 x     = o.getAxis("x")[sx]
 y     = o.getAxis("y")[sy]
 z     = o.getAxis("z")[sz]
 extent=(min(y),max(y),min(z),max(z))
 
-st = slice(None,None,1)
+st = slice(None)
 time = o.getTimeAxis()[st]
-mu = o.rqm[o.sIndex(species)]
 
 #----------------------------------------------
-path = o.path+"/plots/TiX"
+doFilter = False
+alpha = 4
+cutoff = 1/(alpha*o.meshSize)
+axf = (1,2)
+
+#----------------------------------------------
+path = o.path+"/plots/JxB_x"
 o.setup_dir(path)
 
 #----------------------------------------------
 fig, (sub1) = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
 
-data = o.getUth(time[0], species, comp, sl=sl)**2 * mu
+#JxB_x
+data = (o.getTotCurrent(time[0], "y", sl=sl) * o.getB(time[0], "z", sl=sl) -
+        o.getTotCurrent(time[0], "z", sl=sl) * o.getB(time[0], "y", sl=sl)) / (o.getCharge(time[0],"iL",sl=sl)*2)
+if doFilter: o.low_pass_filter(data, cutoff=cutoff, axis=axf)
 
 im=sub1.imshow(data.T,
                extent=extent,origin="lower",
                aspect=1,
-               cmap="jet",
-               norm=LogNorm(vmin=1e-1,vmax=1e1),
+               cmap="bwr",
+               vmin = -0.1, vmax = 0.1,
                interpolation="None")
 
 divider = make_axes_locatable(sub1)
@@ -73,7 +81,7 @@ sub1.set_xlabel(r'$y\ [c/\omega_{pi}]$')
 sub1.set_ylabel(r'$z\ [c/\omega_{pi}]$')
 
 sub1.text(1, 1.05,
-          r"$T_{iL}\ [m_ec^2]$",
+          r"$J\times B\ [E_0]$",
           horizontalalignment='right',
           verticalalignment='bottom',
           transform=sub1.transAxes)
@@ -96,7 +104,10 @@ for i in range(len(time)):
                     verticalalignment='bottom',
                     transform=sub1.transAxes)
 
-    data = o.getUth(time[i], species, comp, sl=sl)**2 * mu
+    data = (o.getTotCurrent(time[i], "y", sl=sl) * o.getB(time[i], "z", sl=sl) -
+            o.getTotCurrent(time[i], "z", sl=sl) * o.getB(time[i], "y", sl=sl)) / (o.getCharge(time[i],"iL",sl=sl)*2)
+    if doFilter: o.low_pass_filter(data, cutoff=cutoff, axis=axf)
+
     im.set_array(data.T)
 
     plt.savefig(path+"/plot-{i}-time-{t}.png".format(i=i,t=time[i]),dpi="figure")

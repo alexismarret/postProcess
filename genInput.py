@@ -7,17 +7,24 @@ Created on Thu Mar 17 13:05:45 2022
 """
 import numpy as np
 import itertools
+import matplotlib.pyplot as plt
+import parallelFunctions as pf
 
-#1D: power of 2**1: 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096
-#2D: power of 2**2: 1, 4, 16, 64, 256, 1024, 4096
-#3D: power of 2**3: 1, 8, 64, 512, 4096
+#----------------------------------------------
+params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 2,
+        'lines.markersize' : 3, 'xtick.labelsize' : 9, 'ytick.labelsize' : 9,
+        'font.size': 5,'legend.fontsize': 9, 'legend.handlelength' : 1.5,
+        'legend.borderpad' : 0.1,'legend.labelspacing' : 0.1, 'axes.linewidth' : 1,
+         'figure.autolayout': True,'text.usetex': True}
+plt.rcParams.update(params)
+
 #--------------------------------------------------------------
 dim = "3D"
-Nnodes = 512
+Nnodes = 130
 NCPUperNodes = 64
 Nthreads = 4
 
-Ncell = np.array([128,512,512])
+Ncell = np.array([512,512,512])
 duration = 1000              #in units of 1/w_pi
 
 v  = 0.5                    #velocity in units of c (=beta)
@@ -36,6 +43,9 @@ nPop = 4
 
 dtDump = 30    #dump time step desired in units of 1/w_pi
 
+scanCoresRep = True
+Nmin = 128
+Nmax = 150
 
 #--------------------------------------------------------------
 lorentz = 1./np.sqrt(1-v**2)
@@ -107,27 +117,28 @@ kmax = np.pi/(dx/np.sqrt(mu))
 #and maximize number of cells per core
 def domainDecomposition(Ncores,Ncell):
 
+    Ndim = len(Ncell)
     #get multiples of Ncores
     d = np.array([x for x in range(1,Ncores+1) if Ncores % x == 0])
     #get dividors, except product of itself
-    c=np.array([x for x in itertools.combinations(d,len(Ncell))
+    c=np.array([x for x in itertools.combinations(d,Ndim)
                         if np.product(x)==Ncores])
     #exit if no dividors
     if len(c)==0:
         print("No domain decomposition found for",Ncores,"cores")
-        return [0]*len(Ncell), 0
+        return [0]*Ndim, 0
 
     #check if sqrt or cubic sqrt in dividors
-    sq = [p for p in d if p**len(Ncell) == Ncores]
+    sq = [p for p in d if p**Ndim == Ncores]
     #add [Ncores**(1/dim)] if integer for 1:1 or 1:1:1 core ratio
-    if len(sq)!=0: c = np.vstack((c,sq*len(Ncell)))
+    if len(sq)!=0: c = np.vstack((c,sq*Ndim))
 
     #find ratio of cores closest to 1
     ratio = np.prod(c[:,:-1] / c[:,-1][...,None],axis=1)
     indices = [j for j, v in enumerate(ratio) if v==max(ratio)]
 
     #assign cores in spatial directions
-    coresRep=np.zeros((len(indices),len(Ncell)),dtype=int)
+    coresRep=np.zeros((len(indices),Ndim),dtype=int)
     for j,i in enumerate(indices):
 
         #argsort(): original indexes of the sorted Ncell array
@@ -141,6 +152,32 @@ def domainDecomposition(Ncores,Ncell):
     best = np.where((std)==min(std))[0][0]
 
     return coresRep[best], ratio[indices[best]]
+
+
+#--------------------------------------------------------------
+if scanCoresRep:
+    # ratioN    = np.zeros(Nmax+1-Nmin)
+    # coresRepN = np.zeros((Nmax+1-Nmin,len(Ncell)))
+    rge = range(Nmin,Nmax+1)
+
+    nP = 6
+    stages = pf.distrib_task(0, Nmax-Nmin, nP)
+    it = ((n*NCPUperNodes, Ncell) for n in rge)
+
+    coresRepN, ratioN = pf.parallel(domainDecomposition, it, nP)
+
+    fig, (sub1) = plt.subplots(1,figsize=(6,5),dpi=300)
+
+    sub1.axhline(0.1,color="gray",linestyle="--",linewidth=0.7)
+    sub1.axhline(1,color="gray",linestyle="--",linewidth=0.7)
+    sub1.semilogy(rge,ratioN,linestyle="",marker="x",markersize=2)
+
+    for i, v in enumerate(ratioN):
+        sub1.text(rge[i], v*1.2, "%d" %rge[i], ha="center")
+
+    # sub1.axes.get_xaxis().set_visible(False)
+    sub1.set_xlabel(r"$\#\ nodes$")
+    sub1.set_ylabel(r"$Aspect\ ratio$")
 
 #--------------------------------------------------------------
 if dim!="1D": coresRep, ratio = domainDecomposition(Ncores,Ncell)

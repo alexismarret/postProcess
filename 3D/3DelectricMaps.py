@@ -33,8 +33,9 @@ o = osiris.Osiris(run,spNorm="iL")
 sx = slice(None,None,1)
 sy = slice(None,None,1)
 sz = slice(None,None,1)
-sl = (sx,sy,sz)
-av = 1  #average along x direction
+sl = (0,sy,sz)
+# av = 1  #average along x direction
+av = None
 
 x     = o.getAxis("x")[sx]
 y     = o.getAxis("y")[sy]
@@ -45,22 +46,26 @@ st = slice(None)
 time = o.getTimeAxis()[st]
 
 #----------------------------------------------
+doFilter = True
+alpha = 4
+cutoff = 1/(alpha*o.meshSize)
+axf = (1,2)
+
+#----------------------------------------------
 path = o.path+"/plots/Ex"
 o.setup_dir(path)
 
 #----------------------------------------------
 fig, (sub1) = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
 
-# data = np.sqrt(o.getE(time[0], "y", sl=sl, parallel=False)**2 +
-#                o.getE(time[0], "z", sl=sl, parallel=False)**2)
-
 data = o.getE(time[0], "x", sl=sl, av=av, parallel=False)
+if doFilter: o.low_pass_filter(data, cutoff=cutoff, axis=axf)
 
 im=sub1.imshow(data.T,
                extent=extent,origin="lower",
                aspect=1,
                cmap="bwr",
-               vmin = -0.02, vmax = 0.02,
+               vmin = -0.1, vmax = 0.1,
                interpolation="None")
 
 divider = make_axes_locatable(sub1)
@@ -74,7 +79,7 @@ sub1.set_xlabel(r'$y\ [c/\omega_{pi}]$')
 sub1.set_ylabel(r'$z\ [c/\omega_{pi}]$')
 
 sub1.text(1, 1.05,
-          r"$E_y\ [E_0]$",
+          r"$E_x\ [E_0]$",
           horizontalalignment='right',
           verticalalignment='bottom',
           transform=sub1.transAxes)
@@ -97,9 +102,8 @@ for i in range(len(time)):
                     verticalalignment='bottom',
                     transform=sub1.transAxes)
 
-    # data = np.sqrt(o.getE(time[i], "y", sl=sl, parallel=False)**2 +
-    #                o.getE(time[i], "z", sl=sl, parallel=False)**2)
     data = o.getE(time[i], "x", sl=sl, av=av, parallel=False)
+    if doFilter: o.low_pass_filter(data, cutoff=cutoff, axis=axf)
 
     im.set_array(data.T)
 
