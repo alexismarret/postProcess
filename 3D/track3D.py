@@ -81,19 +81,6 @@ work2 = pCharge * e2*p2
 work3 = pCharge * e3*p3
 work = work1+work2+work3
 
-# intWork1 = np.cumsum(work1 *dt,axis=-1)
-# intWork2 = np.cumsum(work2 *dt,axis=-1)
-# intWork3 = np.cumsum(work3 *dt,axis=-1)
-def integral(Y,dx):
-
-    from scipy.interpolate import interp1d
-    interp_linearX=interp1d(grid[0], B[...,0], kind='linear')
-
-
-
-
-    return i
-
 intWork1 = cumulative_trapezoid(work1,t,axis=-1,initial=0)
 intWork2 = cumulative_trapezoid(work2,t,axis=-1,initial=0)
 intWork3 = cumulative_trapezoid(work3,t,axis=-1,initial=0)

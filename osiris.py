@@ -26,11 +26,12 @@ import pyfftw
 class Osiris:
 
     #--------------------------------------------------------------
-    def __init__(self, run, spNorm=None, nbrCores=6):
+    def __init__(self, run, spNorm=None, globReduced=False, nbrCores=6):
 
         self.path = os.environ.get("OSIRIS_RUN_DIR") + "/" + run
         self.allRuns = np.sort(os.listdir(os.environ.get("OSIRIS_RUN_DIR")))
         self.nbrCores = nbrCores
+        self.globReduced = globReduced
 
         self.parseInput(run)
 
@@ -42,6 +43,8 @@ class Osiris:
         self.meshSize = self.boxSize / self.grid
         self.cellHyperVolume = np.prod(self.meshSize)
         self.boxHyperVolume  = np.prod(self.boxSize)
+
+        self.setup_dir(self.path+"/plots", rm = False)
 
         return
 
@@ -498,7 +501,7 @@ class Osiris:
 
             return ene_Ex, ene_Ey, ene_Ez
 
-        #kinetic energy
+        #kinetic energy (thermal and drift)
         elif qty=="kin":
             sIndex = self.sIndex(species) + 1
             #make sure padding is correct
@@ -513,13 +516,13 @@ class Osiris:
 
     #--------------------------------------------------------------
     def getB(self, time, comp, sl=slice(None), av=None,
-             reduced=False, parallel=True, transpose=True):
+             reduced=None, parallel=True, transpose=True):
 
         if   comp=="x": key = "b1"
         elif comp=="y": key = "b2"
         elif comp=="z": key = "b3"
 
-        if reduced: key+="-savg"
+        if (reduced==True) or (self.globReduced and reduced!=False): key+="-savg"
         dataPath = self.path+"/MS/FLD/"+key+"/"
 
         B = self.getOnGrid(time,dataPath,None,sl,av,parallel,transpose)
@@ -529,13 +532,13 @@ class Osiris:
 
     #--------------------------------------------------------------
     def getE(self, time, comp, sl=slice(None), av=None,
-             reduced=False, parallel=True, transpose=True):
+             reduced=None, parallel=True, transpose=True):
 
         if   comp=="x": key = "e1"
         elif comp=="y": key = "e2"
         elif comp=="z": key = "e3"
 
-        if reduced: key+="-savg"
+        if (reduced==True) or (self.globReduced and reduced!=False): key+="-savg"
         dataPath = self.path+"/MS/FLD/"+key+"/"
 
         E = self.getOnGrid(time,dataPath,None,sl,av,parallel,transpose)
@@ -545,13 +548,14 @@ class Osiris:
 
     #--------------------------------------------------------------
     def getUfluid(self, time, species, comp, sl=slice(None), av=None,
-                  reduced=False, parallel=True, transpose=True):
+                  reduced=None, parallel=True, transpose=True):
 
+        #get U = p/m = v * lorentz
         if   comp=="x": key = "ufl1"
         elif comp=="y": key = "ufl2"
         elif comp=="z": key = "ufl3"
 
-        if reduced: key+="-savg"
+        if (reduced==True) or (self.globReduced and reduced!=False): key+="-savg"
         dataPath = self.path+"/MS/UDIST/"+species+"/"+key+"/"
 
         Ufluid = self.getOnGrid(time,dataPath,species,sl,av,parallel,transpose)
@@ -561,13 +565,14 @@ class Osiris:
 
     #--------------------------------------------------------------
     def getUth(self, time, species, comp, sl=slice(None), av=None,
-               reduced=False, parallel=True, transpose=True):
+               reduced=None, parallel=True, transpose=True):
 
+        #get Uth = sqrt(kB*T/m)
         if   comp=="x": key = "uth1"
         elif comp=="y": key = "uth2"
         elif comp=="z": key = "uth3"
 
-        if reduced: key+="-savg"
+        if (reduced==True) or (self.globReduced and reduced!=False): key+="-savg"
         dataPath = self.path+"/MS/UDIST/"+species+"/"+key+"/"
 
         Uth = self.getOnGrid(time,dataPath,species,sl,av,parallel,transpose)
@@ -577,14 +582,15 @@ class Osiris:
 
     #--------------------------------------------------------------
     def getCharge(self, time, species, sl=slice(None), av=None,
-                  reduced=False, parallel=True, transpose=True):
+                  reduced=None, parallel=True, transpose=True):
 
         """
         Get species charge density C = n*q
         """
 
         key = "charge"
-        if reduced: key+="-savg"
+
+        if (reduced==True) or (self.globReduced and reduced!=False): key+="-savg"
         dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
 
         Chr = self.getOnGrid(time,dataPath,species,sl,av,parallel,transpose)
@@ -594,14 +600,15 @@ class Osiris:
 
     #--------------------------------------------------------------
     def getMass(self, time, species, sl=slice(None), av=None,
-                      reduced=False, parallel=True, transpose=True):
+                      reduced=None, parallel=True, transpose=True):
 
         """
         Get species mass density M = n*m
         """
 
         key = "m"
-        if reduced: key+="-savg"
+
+        if (reduced==True) or (self.globReduced and reduced!=False): key+="-savg"
         dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
 
         M = self.getOnGrid(time,dataPath,species,sl,av,parallel,transpose)
@@ -611,13 +618,13 @@ class Osiris:
 
     #--------------------------------------------------------------
     def getCurrent(self, time, species, comp, sl=slice(None), av=None,
-                   reduced=False, parallel=True, transpose=True):
+                   reduced=None, parallel=True, transpose=True):
 
         if   comp=="x": key = "j1"
         elif comp=="y": key = "j2"
         elif comp=="z": key = "j3"
 
-        if reduced: key+="-savg"
+        if (reduced==True) or (self.globReduced and reduced!=False): key+="-savg"
         dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
 
         Cur = self.getOnGrid(time,dataPath,species,sl,av,parallel,transpose)
@@ -627,13 +634,13 @@ class Osiris:
 
     #--------------------------------------------------------------
     def getTotCurrent(self, time, comp, sl=slice(None), av=None,
-                      reduced=False, parallel=True, transpose=True):
+                      reduced=None, parallel=True, transpose=True):
 
         if   comp=="x": key = "j1"
         elif comp=="y": key = "j2"
         elif comp=="z": key = "j3"
 
-        if reduced: key+="-savg"
+        if (reduced==True) or (self.globReduced and reduced!=False): key+="-savg"
         dataPath = self.path+"/MS/FLD/"+key+"/"
 
         totCur = self.getOnGrid(time,dataPath,None,sl,av,parallel,transpose)
@@ -644,11 +651,11 @@ class Osiris:
     #--------------------------------------------------------------
     #get species kinetic energy density
     def getKinEnergy(self, time, species, sl=slice(None), av=None,
-                     reduced=False, parallel=True, transpose=True):
+                     reduced=None, parallel=True, transpose=True):
 
         key = "ene"
 
-        if reduced: key+="-savg"
+        if (reduced==True) or (self.globReduced and reduced!=False): key+="-savg"
         dataPath = self.path+"/MS/DENSITY/" +species+"/"+key+"/"
 
         Enrgy = self.getOnGrid(time,dataPath,species,sl,av,parallel,transpose)
@@ -662,7 +669,7 @@ class Osiris:
 
         dataPath = self.path+"/PP/"+key+"/"
 
-        #data needs to be transposed back
+        #data does not need to be transposed back
         D = self.getOnGrid(time,dataPath,None,sl,av,parallel,transpose)
 
         return D
@@ -673,7 +680,8 @@ class Osiris:
 
         if os.path.exists(path) and rm:
             for ext in ("png","eps","pdf","mp4"):
-                for file in glob.glob(path+"/*."+ext): os.remove(file)
+                for file in glob.glob(path+"/*."+ext):
+                    os.remove(file)
 
         elif not os.path.exists(path):
             os.makedirs(path)
@@ -703,7 +711,7 @@ class Osiris:
             baseX, baseY, baseZ = self.crossProduct(ex, ey, ez, Ix, Iy, Iz)
 
             if comp==2: #e x (e x unit vector I), perp2 to e
-                baseX, baseY, baseZ = self.crossProduct(ex, ey, ez, baseX, baseY, baseZ)
+                baseX[:], baseY[:], baseZ[:] = self.crossProduct(ex, ey, ez, baseX, baseY, baseZ)
 
 
         return (vx*baseX + vy*baseY + vz*baseZ) / np.sqrt(baseX**2+baseY**2+baseZ**2)
@@ -716,8 +724,9 @@ class Osiris:
 
         #https://github.com/shixun22/helmholtz/blob/master/helmholtz.py
         #reuse same data and ftdiv arrays for reduced memory usage
-        #computes the compressive (curl E=0, dB/dt=0, E // k component of the field)
+        #computes the compressive (curl E=0, dB/dt=0, E // k) component of the field
         #E_c = IFT[ (FT[E].k) * k / k^2 ]
+        #E_r = E - Ec is the rotational component
 
         #-----------------------------------
         #configure pyfftw and
@@ -739,21 +748,21 @@ class Osiris:
         ifft = pyfftw.FFTW(ftdiv, ftdiv, axes=ax, direction='FFTW_BACKWARD', flags=flags, threads=nthreads)
 
         #-----------------------------------
-        dimkx = (self.grid[0],)+(1,)*(self.ndim-1)   #equivalent to [:,None,None] in 3D
+        dimkx = (self.grid[0],) + (1,)*(self.ndim-1)  #broadcasting from last to first dimension, kx changes along kx axis
         kx = np.fft.fftfreq(self.grid[0],self.meshSize[0]) .reshape(dimkx)  #no need to multiply by 2*np.pi since normalized
-        data[:]  = self.getE(time,"x")   #assign field value to real part of data array, imaginary part is 0
-        ftdiv[:] = fft(data) * kx.astype(dtype)  #fft Ex, specify type to avoid copy
+        data[:]  = self.getE(time,"x")   #assign field value to real part of data array in place, imaginary part is 0
+        ftdiv[:] = fft(data) * kx.astype(dtype)  #fft Ex stored in place in ftdiv array, specify type of kx to avoid copy
 
         #-----------------------------------
         if self.ndim>1:  #2D
-            dimky = (self.grid[1],)+(1,)*(self.ndim-2)  #[None,:,None] in 3D
+            dimky = (self.grid[1],) + (1,)*(self.ndim-2)
             ky = np.fft.fftfreq(self.grid[1],self.meshSize[1]) .reshape(dimky)
             data[:]  = self.getE(time,"y")
-            ftdiv   += fft(data) * ky  #fft Ey, no need to specify type anymore
+            ftdiv   += fft(data) * ky  #fft Ey, no need to specify type anymore because reason
 
             #-----------------------------------
             if self.ndim>2:  #3D
-                kz = np.fft.fftfreq(self.grid[2],self.meshSize[2])
+                kz = np.fft.fftfreq(self.grid[2],self.meshSize[2])  #no reshape needed, broadcast starts from last dimension
                 data[:]  = self.getE(time,"z")
                 ftdiv   += fft(data) * kz  #fft Ez
 
@@ -771,55 +780,49 @@ class Osiris:
         #-----------------------------------
         #check decomposition, memory heavy
         if check:
-
             Ex = self.getE(time,"x")
             Ey = self.getE(time,"y")
             Ez = self.getE(time,"z")
 
-            Ecx = np.fft.ifftn(ftdiv * kx)
-            Ecy = np.fft.ifftn(ftdiv * ky)
-            Ecz = np.fft.ifftn(ftdiv * kz)
+            Ecx = np.fft.ifftn(ftdiv * kx, axes=ax)
+            Ecy = np.fft.ifftn(ftdiv * ky, axes=ax)
+            Ecz = np.fft.ifftn(ftdiv * kz, axes=ax)
 
             Erx = Ex - Ecx
             Ery = Ey - Ecy
             Erz = Ez - Ecz
 
-            Erx_fromFT = np.fft.ifftn(np.fft.fftn(Ex) - ftdiv * kx)
-            Ery_fromFT = np.fft.ifftn(np.fft.fftn(Ey) - ftdiv * ky)
-            Erz_fromFT = np.fft.ifftn(np.fft.fftn(Ez) - ftdiv * kz)
-
             i2pi = 1j * 2*np.pi #i in div and rot operator in fourier space and 2pi factor in k
             #-----------------------------------
-            divR = np.fft.ifftn((np.fft.fftn(Erx) * kx +
-                                 np.fft.fftn(Ery) * ky +
-                                 np.fft.fftn(Erz) * kz) * i2pi)
+            divR = np.fft.ifftn((np.fft.fftn(Erx, axes=ax) * kx +
+                                 np.fft.fftn(Ery, axes=ax) * ky +
+                                 np.fft.fftn(Erz, axes=ax) * kz) * i2pi, axes=ax)
 
-            divC = np.fft.ifftn((np.fft.fftn(Ecx) * kx +
-                                 np.fft.fftn(Ecy) * ky +
-                                 np.fft.fftn(Ecz) * kz) * i2pi)
+            divC = np.fft.ifftn((np.fft.fftn(Ecx, axes=ax) * kx +
+                                 np.fft.fftn(Ecy, axes=ax) * ky +
+                                 np.fft.fftn(Ecz, axes=ax) * kz) * i2pi, axes=ax)
 
-            rotR_fx, rotR_fy, rotR_fz = self.crossProduct(kx, ky, kz, np.fft.fftn(Erx), np.fft.fftn(Ery), np.fft.fftn(Erz))
-            rotC_fx, rotC_fy, rotC_fz = self.crossProduct(kx, ky, kz, np.fft.fftn(Ecx), np.fft.fftn(Ecy), np.fft.fftn(Ecz))
+            rotR_fx, rotR_fy, rotR_fz = self.crossProduct(kx, ky, kz,
+                                                          np.fft.fftn(Erx, axes=ax),
+                                                          np.fft.fftn(Ery, axes=ax),
+                                                          np.fft.fftn(Erz, axes=ax))
+            rotC_fx, rotC_fy, rotC_fz = self.crossProduct(kx, ky, kz,
+                                                          np.fft.fftn(Ecx, axes=ax),
+                                                          np.fft.fftn(Ecy, axes=ax),
+                                                          np.fft.fftn(Ecz, axes=ax))
 
-            rotRx, rotRy, rotRz = np.fft.ifftn(rotR_fx *i2pi), np.fft.ifftn(rotR_fy *i2pi), np.fft.ifftn(rotR_fz *i2pi)
-            rotCx, rotCy, rotCz = np.fft.ifftn(rotC_fx *i2pi), np.fft.ifftn(rotC_fy *i2pi), np.fft.ifftn(rotC_fz *i2pi)
+            rotRx, rotRy, rotRz = (np.fft.ifftn(rotR_fx *i2pi, axes=ax),
+                                   np.fft.ifftn(rotR_fy *i2pi, axes=ax),
+                                   np.fft.ifftn(rotR_fz *i2pi, axes=ax))
+            rotCx, rotCy, rotCz = (np.fft.ifftn(rotC_fx *i2pi, axes=ax),
+                                   np.fft.ifftn(rotC_fy *i2pi, axes=ax),
+                                   np.fft.ifftn(rotC_fz *i2pi, axes=ax))
 
             print ('div_rotational max:',  np.max(np.abs(divR)))
-            print ('rot_rotational max:',  np.max(np.abs(rotRx)),
-                                           np.max(np.abs(rotRy)),
-                                           np.max(np.abs(rotRz)))
+            print ('rot_rotational max:',  np.max((np.abs(rotRx),np.abs(rotRy),np.abs(rotRz))))
 
             print ('div_compressive max:', np.max(np.abs(divC)))
-            print ('rot_compressive max:', np.max(np.abs(rotCx)),
-                                           np.max(np.abs(rotCy)),
-                                           np.max(np.abs(rotCz)))
-
-            print('Er-Er_fromFT:', np.max(np.abs(Erx-Erx_fromFT)),
-                                   np.max(np.abs(Ery-Ery_fromFT)),
-                                   np.max(np.abs(Erz-Erz_fromFT)))
-
-            # import sys
-            # sys.exit()
+            print ('rot_compressive max:', np.max((np.abs(rotCx),np.abs(rotCy),np.abs(rotCz))))
 
         #-----------------------------------
         #perform inverse fft, one component per function call to reduce memory usage
@@ -923,30 +926,37 @@ class Osiris:
 
 
     #--------------------------------------------------------------
-    def createTagsFile(self, species, outPath, step=None,
-                       synth=False, N_CPU=None, Tpart=None):
+    def createTagsFile(self, species, outPath, sl=slice(None),
+                       synth=False, N_CPU=None, Npart=None):
 
-        #TODO
+        #synth: whether to create the tag file from scratch or from raw data
+        #N_CPU: total number of CPU in the simulation, to be used with synth=True
+        #Npart: total number of tags wanted, to be used with synth=True
+
+        #tag file from scratch
         if synth:
-            # ppcpu = Tpart // N_CPU
-            # rmn   = Tpart % N_CPU
 
-            if Tpart % N_CPU ==0: N = Tpart // N_CPU
-            else:                 N = Tpart // N_CPU + 1
+            import random
 
-            ppcpu = Tpart/N_CPU
+            #number of tags per CPU, add
+            if Npart <= N_CPU:
+                N_CPU = Npart
+                N = 1
+            else:
+                N = Npart // N_CPU
 
-            stackedTags = np.zeros((N_CPU,2))
+            stackedTags = np.zeros((N*N_CPU,2),dtype=int)
+            #maximum tag index for safety, should be larger than N
+            rgeTags = range(1,N*10)
 
-            cpu = 1
-            for p in range(Tpart):
+            i=0
+            for c in range(1,N_CPU+1):
+                partTags = random.sample(rgeTags, N)
+                for t in partTags:
+                    stackedTags[i] = c, t
+                    i+=1
 
-                if p>ppcpu: cpu+=1
-                stackedTags[cpu-1] = (cpu,p)
-
-            print(stackedTags)
-
-
+        #tag file from raw data
         else:
             time = self.getTimeAxis(species,raw=True)
             tag = self.getRaw(time, species, "tag")   #[time,part]
@@ -964,18 +974,19 @@ class Osiris:
                     stackedTags = np.vstack((stackedTags, tag[i][keep]))
 
             #sort the tags
-            stackedTags=sorted(stackedTags, key=operator.itemgetter(0, 1))[::step]
-            # stackedTags = stackedTags[::step]
+            # stackedTags=sorted(stackedTags, key=operator.itemgetter(0, 1))[sl]
+            stackedTags = stackedTags[sl]
 
             print("Species",species+":",len(stackedTags),"tags")
 
-            with open(outPath,'w') as f:
+        #create tag file
+        with open(outPath,'w') as f:
 
-                # First line of file should contain the total number of tags followed by a comma
-                f.write(str(len(stackedTags))+',\n')
-                # The rest of the file is just the node id and particle id for each tag, each followed by a comma
-                for node_id,particle_id in stackedTags:
-                    f.write(str(node_id)+', '+str(particle_id)+',\n')
+            # First line of file should contain the total number of tags followed by a comma
+            f.write(str(len(stackedTags))+',\n')
+            # The rest of the file is just the node id and particle id for each tag, each followed by a comma
+            for node_id,particle_id in stackedTags:
+                f.write(str(node_id)+', '+str(particle_id)+',\n')
 
         return
 
@@ -1059,10 +1070,9 @@ class Osiris:
         return
 
 
+
+
     """
-
-
-
     #--------------------------------------------------------------
     def getSlicedSize(self, sl, av):
 

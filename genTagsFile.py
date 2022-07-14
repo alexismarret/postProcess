@@ -17,11 +17,12 @@ o = osiris.Osiris(run)
 
 # species=["eL","eR","iL","iR"]
 species=["eL"]
-step = 20
+sl = slice(None)   #fraction of tags to track
 
-N_CPU = 64
-Tpart = 20
+N_CPU = 512
+Npart = 7000
 synth = True
+
 #----------------------------------------------
 outPath = o.path+"/tags"
 if not os.path.exists(outPath):
@@ -31,5 +32,5 @@ else:
 
 #----------------------------------------------
 for i in range(len(species)):
-        o.createTagsFile(species[i],outPath+"/"+species[i]+".tags",step=step,
-                         synth=synth, N_CPU=N_CPU, Tpart=Tpart)
+        o.createTagsFile(species[i],outPath+"/"+species[i]+".tags",sl=sl,
+                         synth=synth, N_CPU=N_CPU, Npart=Npart)

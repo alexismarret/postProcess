@@ -79,20 +79,20 @@ I_workE_centered   = np.cumsum(workE_centered_X +
 
 Err = np.abs(I_workE_centered - ene[nP]) / ene[nP]
 
-#----------------------------------------------
-time = o.getTimeAxis()
-avnp = (0,1,2)
-sl=(slice(0,int(o.grid[0]/2),1),
-    slice(0,int(o.grid[1]/2),1),
-    slice(0,int(o.grid[2]/2),1))
+# #----------------------------------------------
+# time = o.getTimeAxis()
+# avnp = (0,1,2)
+# sl=(slice(0,int(o.grid[0]/2),1),
+#     slice(0,int(o.grid[1]/2),1),
+#     slice(0,int(o.grid[2]/2),1))
 
-TeLx = np.zeros(len(time))
-TeLy = np.zeros(len(time))
+# TeLx = np.zeros(len(time))
+# TeLy = np.zeros(len(time))
 
-for i in range(len(time)):
-    print(i)
-    TeLx[i] = np.mean(o.getUth(time[i], species, "x", sl=sl)**2, axis=avnp)
-    TeLy[i] = np.mean(o.getUth(time[i], species, "y", sl=sl)**2, axis=avnp)
+# for i in range(len(time)):
+#     print(i)
+#     TeLx[i] = np.mean(o.getUth(time[i], species, "x", sl=sl)**2, axis=avnp)
+#     TeLy[i] = np.mean(o.getUth(time[i], species, "y", sl=sl)**2, axis=avnp)
 
 #%%
 #----------------------------------------------
@@ -118,8 +118,8 @@ sub1.plot(t,np.mean(ene,axis=0),color="k",label=r"$<\mathcal{E}_{PIC}>$")
 
 sub1.plot(t[1:],np.mean(I_workE_centered,axis=0),color="cyan",linestyle="--",label=r"$<\sum W_E>$")
 
-sub1.plot(time,TeLx,color="orange",label=r"$T_{ex}$")
-sub1.plot(time,TeLy,color="orange",linestyle="--",label=r"$T_{ey}$")
+# sub1.plot(time,TeLx,color="orange",label=r"$T_{ex}$")
+# sub1.plot(time,TeLy,color="orange",linestyle="--",label=r"$T_{ey}$")
 
 sub1.set_xlabel(r"$t\ [\omega_{pi}^{-1}]$")
 sub1.legend(frameon=False)

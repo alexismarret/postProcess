@@ -48,7 +48,7 @@ Kin_UeL = np.mean(
                         1+o.getUfluid(time, "eL", "x")**2+
                           o.getUfluid(time, "eL", "y")**2+
                           o.getUfluid(time, "eL", "z")**2)-1
-                    )*mu,axis=av)
+                    ),axis=av)
 
 
 TiLx = np.mean(o.getUth(time, "iL", "x")**2,axis=av) * mu

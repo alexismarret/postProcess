@@ -22,17 +22,19 @@ plt.rcParams.update(params)
 # plt.close("all")
 
 #----------------------------------------------
-run  ="CS3D_noKink"
+# run  ="CS3D_noKink"
 # run = "CS3Dtrack"
 # run ="CS3Drmhr"
-o = osiris.Osiris(run,spNorm="iL",nbrCores=6)
+run = "CS3DMu64noB"
+o = osiris.Osiris(run,spNorm="iL",globReduced=True)
 
-sx = slice(None,None,1)
-sy = slice(None,None,1)
-sz = slice(None,None,1)
+ind = 256
+sx = slice(None,ind,1)
+sy = slice(None,ind,1)
+sz = slice(None,ind,1)
 sl = (sx,sy,sz)
 
-st = slice(0,None,1)
+st = slice(0,-1,1)
 time = o.getTimeAxis()[st]
 
 avnp = (0,1,2)
@@ -51,11 +53,10 @@ Jtot = np.zeros(len(time))
 for i in range(len(time)):
     print(i)
     Ekin_iL[i]  = np.mean(
-                        (np.sqrt(
-                            1+o.getUfluid(time[i], "iL", "x", sl=sl)**2+
-                              o.getUfluid(time[i], "iL", "y", sl=sl)**2+
-                              o.getUfluid(time[i], "iL", "z", sl=sl)**2)-1
-                        ),axis=avnp)*mu
+                        (np.sqrt(1+o.getUfluid(time[i], "iL", "x", sl=sl)**2+
+                                   o.getUfluid(time[i], "iL", "y", sl=sl)**2+
+                                   o.getUfluid(time[i], "iL", "z", sl=sl)**2)-1),
+                        axis=avnp)*mu
 
     TiLx[i] = np.mean(o.getUth(time[i], "iL", "x", sl=sl)**2, axis=avnp)*mu
     TeLx[i] = np.mean(o.getUth(time[i], "eL", "x", sl=sl)**2, axis=avnp)
@@ -67,7 +68,6 @@ for i in range(len(time)):
 
 Ex,Ey,Ez = o.getEnergyIntegr(time, "E")
 Bx,By,Bz = o.getEnergyIntegr(time, "B")
-
 
 #%%
 #----------------------------------------------
@@ -93,7 +93,7 @@ sub1.plot(time,By,color="gray",linestyle="dashdot",label=r"$\mathcal{E}_{By}$")
 sub1.plot(time,Bz,color="gray",linestyle="dotted",label=r"$\mathcal{E}_{Bz}$")
 
 sub1.set_xlim(time[0],time[-1])
-sub1.set_ylim(1e-3,5)
+sub1.set_ylim(1e-3,10)
 
 sub1.set_xlabel(r"$t\ [\omega_{pi}^{-1}]$")
 sub1.legend(frameon=False,ncol=4)

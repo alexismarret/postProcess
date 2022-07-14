@@ -20,7 +20,7 @@ plt.rcParams.update(params)
 
 #--------------------------------------------------------------
 dim = "3D"
-Nnodes = 130
+Nnodes = 8
 NCPUperNodes = 64
 Nthreads = 4
 
@@ -43,9 +43,9 @@ nPop = 4
 
 dtDump = 30    #dump time step desired in units of 1/w_pi
 
-scanCoresRep = True
+scanCoresRep = False
 Nmin = 128
-Nmax = 150
+Nmax = 256
 
 #--------------------------------------------------------------
 lorentz = 1./np.sqrt(1-v**2)
@@ -119,9 +119,9 @@ def domainDecomposition(Ncores,Ncell):
 
     Ndim = len(Ncell)
     #get multiples of Ncores
-    d = np.array([x for x in range(1,Ncores+1) if Ncores % x == 0])
+    d = [x for x in range(1,Ncores+1) if Ncores % x == 0]
     #get dividors, except product of itself
-    c=np.array([x for x in itertools.combinations(d,Ndim)
+    c = np.array([x for x in itertools.combinations(d,Ndim)
                         if np.product(x)==Ncores])
     #exit if no dividors
     if len(c)==0:
@@ -135,10 +135,10 @@ def domainDecomposition(Ncores,Ncell):
 
     #find ratio of cores closest to 1
     ratio = np.prod(c[:,:-1] / c[:,-1][...,None],axis=1)
-    indices = [j for j, v in enumerate(ratio) if v==max(ratio)]
+    indices = [j for j, v in enumerate(ratio) if v==np.max(ratio)]
 
     #assign cores in spatial directions
-    coresRep=np.zeros((len(indices),Ndim),dtype=int)
+    coresRep = np.zeros((len(indices),Ndim),dtype=int)
     for j,i in enumerate(indices):
 
         #argsort(): original indexes of the sorted Ncell array
@@ -149,7 +149,7 @@ def domainDecomposition(Ncores,Ncell):
     std = np.std(Ncell/coresRep,axis=1)
 
     #maximize cells per core among best choice of ratio
-    best = np.where((std)==min(std))[0][0]
+    best = np.where(std==min(std))[0][0]
 
     return coresRep[best], ratio[indices[best]]
 
