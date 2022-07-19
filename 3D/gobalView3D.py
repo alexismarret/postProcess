@@ -28,7 +28,7 @@ plt.rcParams.update(params)
 run = "CS3DMu64noB"
 o = osiris.Osiris(run,spNorm="iL",globReduced=True)
 
-ind = 256
+ind = 512
 sx = slice(None,ind,1)
 sy = slice(None,ind,1)
 sz = slice(None,ind,1)
@@ -52,16 +52,16 @@ Jtot = np.zeros(len(time))
 
 for i in range(len(time)):
     print(i)
-    Ekin_iL[i]  = np.mean(
-                        (np.sqrt(1+o.getUfluid(time[i], "iL", "x", sl=sl)**2+
-                                   o.getUfluid(time[i], "iL", "y", sl=sl)**2+
-                                   o.getUfluid(time[i], "iL", "z", sl=sl)**2)-1),
-                        axis=avnp)*mu
+    # Ekin_iL[i]  = np.mean(
+    #                     (np.sqrt(1+o.getUfluid(time[i], "iL", "x", sl=sl)**2+
+    #                                o.getUfluid(time[i], "iL", "y", sl=sl)**2+
+    #                                o.getUfluid(time[i], "iL", "z", sl=sl)**2)-1),
+    #                     axis=avnp)*mu
 
-    TiLx[i] = np.mean(o.getUth(time[i], "iL", "x", sl=sl)**2, axis=avnp)*mu
-    TeLx[i] = np.mean(o.getUth(time[i], "eL", "x", sl=sl)**2, axis=avnp)
-    TiLy[i] = np.mean(o.getUth(time[i], "iL", "y", sl=sl)**2, axis=avnp)*mu
-    TeLy[i] = np.mean(o.getUth(time[i], "eL", "y", sl=sl)**2, axis=avnp)
+    # TiLx[i] = np.mean(o.getUth(time[i], "iL", "x", sl=sl)**2, axis=avnp)*mu
+    # TeLx[i] = np.mean(o.getUth(time[i], "eL", "x", sl=sl)**2, axis=avnp)
+    # TiLy[i] = np.mean(o.getUth(time[i], "iL", "y", sl=sl)**2, axis=avnp)*mu
+    # TeLy[i] = np.mean(o.getUth(time[i], "eL", "y", sl=sl)**2, axis=avnp)
 
     Jtot[i] = np.mean(o.getTotCurrent(time[i], "y",sl=sl)**2, axis=avnp)
 
@@ -74,19 +74,19 @@ Bx,By,Bz = o.getEnergyIntegr(time, "B")
 # fig, (sub1,sub2) = plt.subplots(1,2,figsize=(4.1,2.8),dpi=300,sharex=True,sharey=True)
 fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
 
-sub1.plot(time,Ekin_iL,color="g",label=r"$\mathcal{E}_{kin|iL}$")
+# sub1.plot(time,Ekin_iL,color="g",label=r"$\mathcal{E}_{kin|iL}$")
 
-sub1.plot(time,TiLx,color="r",label=r"$T_{x|iL}$")
-sub1.plot(time,TiLy,color="r",label=r"$T_{y|iL}$",linestyle="dashed")
+# sub1.plot(time,TiLx,color="r",label=r"$T_{x|iL}$")
+# sub1.plot(time,TiLy,color="r",label=r"$T_{y|iL}$",linestyle="dashed")
 
-sub1.plot(time,TeLx,color="b",label=r"$T_{x|eL}$")
-sub1.plot(time,TeLy,color="b",label=r"$T_{y|eL}$",linestyle="dashed")
+# sub1.plot(time,TeLx,color="b",label=r"$T_{x|eL}$")
+# sub1.plot(time,TeLy,color="b",label=r"$T_{y|eL}$",linestyle="dashed")
 
 sub1.plot(time,Jtot,color="orange",label=r"$J_y$")
 
-sub1.plot(time,Ex,color="k",linestyle="dashed",label=r"$\mathcal{E}_{Ex}$")
-sub1.plot(time,Ey,color="k",linestyle="dashdot",label=r"$\mathcal{E}_{Ey}$")
-sub1.plot(time,Ez,color="k",linestyle="dotted",label=r"$\mathcal{E}_{Ez}$")
+sub1.plot(time,Ex*100,color="k",linestyle="dashed",label=r"$\mathcal{E}_{Ex}$")
+sub1.plot(time,Ey*100,color="k",linestyle="dashdot",label=r"$\mathcal{E}_{Ey}$")
+sub1.plot(time,Ez*100,color="k",linestyle="dotted",label=r"$\mathcal{E}_{Ez}$")
 
 sub1.plot(time,Bx,color="gray",linestyle="dashed",label=r"$\mathcal{E}_{Bx}$")
 sub1.plot(time,By,color="gray",linestyle="dashdot",label=r"$\mathcal{E}_{By}$")

@@ -20,28 +20,28 @@ plt.rcParams.update(params)
 
 #--------------------------------------------------------------
 dim = "3D"
-Nnodes = 8
+Nnodes = 512
 NCPUperNodes = 64
 Nthreads = 4
 
 Ncell = np.array([512,512,512])
-duration = 1000              #in units of 1/w_pi
+duration = 200              #in units of 1/w_pi
 
 v  = 0.5                    #velocity in units of c (=beta)
 n0 = 0.5     #density in proper frame
 T  = 1e-6    #in units of me * c^2 (=511 KeV) in rest frame
 alfMach = 20   #wanted Alfvenic Mach number
 B_angle = 80  #angle between x axis and B in degrees in (x,y) plane
-mu = 32.
+mu = 32
 
-dx = 1/2      #in units of c/w_pe
-dy = 1/2
-dz = 1/2
+dx = 1/4      #in units of c/w_pe
+dy = 1/4
+dz = 1/4
 
 ppc = 8
 nPop = 4
 
-dtDump = 30    #dump time step desired in units of 1/w_pi
+dtDump = 0.5    #dump time step desired in units of 1/w_pi
 
 scanCoresRep = False
 Nmin = 128
@@ -158,22 +158,22 @@ def domainDecomposition(Ncores,Ncell):
 if scanCoresRep:
     # ratioN    = np.zeros(Nmax+1-Nmin)
     # coresRepN = np.zeros((Nmax+1-Nmin,len(Ncell)))
-    rge = range(Nmin,Nmax+1)
+    rge = np.array(range(Nmin,Nmax+1))
 
     nP = 6
     stages = pf.distrib_task(0, Nmax-Nmin, nP)
     it = ((n*NCPUperNodes, Ncell) for n in rge)
 
     coresRepN, ratioN = pf.parallel(domainDecomposition, it, nP)
-
+    cond = (ratioN>=0.1)
     fig, (sub1) = plt.subplots(1,figsize=(6,5),dpi=300)
 
     sub1.axhline(0.1,color="gray",linestyle="--",linewidth=0.7)
     sub1.axhline(1,color="gray",linestyle="--",linewidth=0.7)
-    sub1.semilogy(rge,ratioN,linestyle="",marker="x",markersize=2)
+    sub1.semilogy(rge[cond],ratioN[cond],linestyle="",marker="x",markersize=2)
 
-    for i, v in enumerate(ratioN):
-        sub1.text(rge[i], v*1.2, "%d" %rge[i], ha="center")
+    for i, v in enumerate(ratioN[cond]):
+        sub1.text(rge[cond][i], v*1.03, "%d" %rge[cond][i], ha="center")
 
     # sub1.axes.get_xaxis().set_visible(False)
     sub1.set_xlabel(r"$\#\ nodes$")

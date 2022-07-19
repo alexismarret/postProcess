@@ -26,7 +26,7 @@ plt.rcParams.update(params)
 # plt.close("all")
 
 #----------------------------------------------
-run  ="CS3Dtrack"
+run  ="CS3Drmhr"
 
 o = osiris.Osiris(run,spNorm="iL")
 
@@ -36,12 +36,14 @@ charge = np.sign(o.rqm[o.sIndex(species)])
 sx = slice(None,None,1)
 sy = slice(None,None,1)
 sz = slice(None,None,1)
-sl = (0,sy,sz)
+sz=0
+sl = (sx,sy,sz)
+av = None
 
-x     = o.getAxis("x")[sx]
-y     = o.getAxis("y")[sy]
-z     = o.getAxis("z")[sz]
-extent=(min(y),max(y),min(z),max(z))
+x = o.getAxis("x")[sx]
+y = o.getAxis("y")[sy]
+z = o.getAxis("z")[sz]
+extent=(min(x),max(x),min(y),max(y))
 
 st = slice(None)
 time = o.getTimeAxis()[st]
@@ -56,7 +58,7 @@ fig, (sub1) = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
 # data = np.sqrt(o.getE(time[0], "y", sl=sl, parallel=False)**2 +
 #                o.getE(time[0], "z", sl=sl, parallel=False)**2)
 
-data = o.getCharge(time[0], species, sl=sl, parallel=False)*charge
+data = o.getCharge(time[0], species, sl=sl, av=av,parallel=False)*charge
 
 im=sub1.imshow(data.T,
                extent=extent,origin="lower",
@@ -101,7 +103,7 @@ for i in range(len(time)):
 
     # data = np.sqrt(o.getE(time[i], "y", sl=sl, parallel=False)**2 +
     #                o.getE(time[i], "z", sl=sl, parallel=False)**2)
-    data = o.getCharge(time[i], species, sl=sl, parallel=False)*charge
+    data = o.getCharge(time[i], species, sl=sl, av=av, parallel=False)*charge
 
     im.set_array(data.T)
 

@@ -63,8 +63,6 @@ for i in range(len(mi)):
     # e_ene = me*(np.sqrt(1+p2/me**2)-1)
     # Te_if = n0*e_ene
 
-
-
     max_Te_if = 1/4 * mi[i]**2/me * vi**2
 
     # Te_if_upper = np.sqrt(2*mi[i]*epsB/n0 * 2)

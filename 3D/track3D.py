@@ -33,7 +33,7 @@ species ="iL"
 
 #----------------------------------------------
 #index of macroparticle
-sPart = slice(None,None,10)
+sPart = slice(None,None,1)
 sTime = slice(None,None,1)
 sl = (sPart,sTime)
 

@@ -29,18 +29,20 @@ plt.rcParams.update(params)
 # run  ="CS3Drmhr"
 # run  ="CS3Dtrack"
 run  ="CS3D_noKink"
+run = "CS3DMu64Ma40theta10"
 
-o = osiris.Osiris(run,spNorm="iL")
+o = osiris.Osiris(run,spNorm="iL",globReduced=True)
 
 sx = slice(None,None,1)
 sy = slice(None,None,1)
 sz = slice(None,None,1)
+sz = 0
 sl = (sx,sy,sz)
-av = 1
+av = None
 
-x     = o.getAxis("x")[sx]
-y     = o.getAxis("y")[sy]
-z     = o.getAxis("z")[sz]
+x     = o.getAxis("x")
+y     = o.getAxis("y")
+z     = o.getAxis("z")
 extent=(min(y),max(y),min(z),max(z))
 
 st = slice(None)

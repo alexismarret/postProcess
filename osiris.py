@@ -10,7 +10,6 @@ import glob
 import os
 
 import numpy as np
-import operator
 
 import h5py
 import parallelFunctions as pf
@@ -925,71 +924,6 @@ class Osiris:
         return kappaX/norm2, kappaY/norm2, kappaZ/norm2
 
 
-    #--------------------------------------------------------------
-    def createTagsFile(self, species, outPath, sl=slice(None),
-                       synth=False, N_CPU=None, Npart=None):
-
-        #synth: whether to create the tag file from scratch or from raw data
-        #N_CPU: total number of CPU in the simulation, to be used with synth=True
-        #Npart: total number of tags wanted, to be used with synth=True
-
-        #tag file from scratch
-        if synth:
-
-            import random
-
-            #number of tags per CPU, add
-            if Npart <= N_CPU:
-                N_CPU = Npart
-                N = 1
-            else:
-                N = Npart // N_CPU
-
-            stackedTags = np.zeros((N*N_CPU,2),dtype=int)
-            #maximum tag index for safety, should be larger than N
-            rgeTags = range(1,N*10)
-
-            i=0
-            for c in range(1,N_CPU+1):
-                partTags = random.sample(rgeTags, N)
-                for t in partTags:
-                    stackedTags[i] = c, t
-                    i+=1
-
-        #tag file from raw data
-        else:
-            time = self.getTimeAxis(species,raw=True)
-            tag = self.getRaw(time, species, "tag")   #[time,part]
-
-            start=True
-            for i in range(len(tag)):
-
-                if start:
-                    stackedTags = tag[i]
-                    start=False
-                else:
-                    cond = np.isin(tag[i],stackedTags)   #false if tag is NOT already set
-                    keep = ~np.logical_and(cond[:,0],cond[:,1])
-                    #add tag if both node and particle number are not already in
-                    stackedTags = np.vstack((stackedTags, tag[i][keep]))
-
-            #sort the tags
-            # stackedTags=sorted(stackedTags, key=operator.itemgetter(0, 1))[sl]
-            stackedTags = stackedTags[sl]
-
-            print("Species",species+":",len(stackedTags),"tags")
-
-        #create tag file
-        with open(outPath,'w') as f:
-
-            # First line of file should contain the total number of tags followed by a comma
-            f.write(str(len(stackedTags))+',\n')
-            # The rest of the file is just the node id and particle id for each tag, each followed by a comma
-            for node_id,particle_id in stackedTags:
-                f.write(str(node_id)+', '+str(particle_id)+',\n')
-
-        return
-
 
     #--------------------------------------------------------------
     def writeHDF5(self, data, name, timeArray=True, index=0, dtype='float32'):
@@ -1045,6 +979,73 @@ class Osiris:
 
 
     #--------------------------------------------------------------
+    def createTagsFile(self, species, outPath, sl=slice(None),
+                       synth=False, N_CPU=None, Npart=None):
+
+        #synth: whether to create the tag file from scratch or from raw data
+        #N_CPU: total number of CPU in the simulation, to be used with synth=True
+        #Npart: total number of tags wanted, to be used with synth=True
+
+        #tag file from scratch
+        if synth:
+            import random
+
+            #number of tags per CPU, << Total number
+            if Npart <= N_CPU:
+                N_CPU = Npart
+                N = 1
+            else:
+                N = Npart // N_CPU
+
+            stackedTags = np.zeros((N*N_CPU,2),dtype=int)
+            #maximum tag index should be much smaller than total number
+            #of macroparticles per core
+            rgeTags = range(1,N*10)  #factor 10 to pick random values different from unity~
+
+            i=0
+            for c in range(1,N_CPU+1):
+                partTags = random.sample(rgeTags, N)
+                for t in partTags:
+                    stackedTags[i] = c, t
+                    i+=1
+
+        #tag file from raw data
+        else:
+            time = self.getTimeAxis(species,raw=True)
+            tag = self.getRaw(time, species, "tag")   #[time,part]
+
+            start=True
+            for i in range(len(tag)):
+
+                if start:
+                    stackedTags = tag[i]
+                    start=False
+                else:
+                    cond = np.isin(tag[i],stackedTags)   #false if tag is NOT already set
+                    keep = ~np.logical_and(cond[:,0],cond[:,1])
+                    #add tag if both node and particle number are not already in
+                    stackedTags = np.vstack((stackedTags, tag[i][keep]))
+
+            #sort the tags
+            # import operator
+            # stackedTags=sorted(stackedTags, key=operator.itemgetter(0, 1))[sl]
+            stackedTags = stackedTags[sl]
+
+        print("Species",species+":",len(stackedTags),"tags")
+
+        #create tag file
+        with open(outPath,'w') as f:
+
+            # First line of file should contain the total number of tags followed by a comma
+            f.write(str(len(stackedTags))+',\n')
+            # The rest of the file is just the node id and particle id for each tag, each followed by a comma
+            for node_id,particle_id in stackedTags:
+                f.write(str(node_id)+', '+str(particle_id)+',\n')
+
+        return
+
+
+    #--------------------------------------------------------------
     def low_pass_filter(self, data, cutoff, axis, res=None, timeSeries=False):
 
         #low pass filter, modify data in place
@@ -1070,11 +1071,33 @@ class Osiris:
         return
 
 
+    #--------------------------------------------------------------
+    def bisection(self, array, value):
+        #https://stackoverflow.com/questions/2566412/find-nearest-value-in-numpy-array
+        '''Given an ``array`` , and given a ``value`` , returns an index j such that ``value`` is between array[j]
+        and array[j+1]. ``array`` must be monotonic increasing. j=-1 or j=len(array) is returned
+        to indicate that ``value`` is out of range below and above respectively.'''
+        n = len(array)
+        if   (value < array[0]):   return -1
+        elif (value > array[n-1]): return n
+        jl = 0                       # Initialize lower
+        ju = n-1                     # and upper limits.
+        while (ju-jl > 1):           # If we are not yet done,
+            jm=(ju+jl) >> 1          # compute a midpoint with a bitshift
+            if (value >= array[jm]): jl=jm    # and replace either the lower limit
+            else: ju=jm   # or the upper limit, as appropriate.
+        # Repeat until the test condition is satisfied.
+        if   (value == array[0]):   return 0     # edge cases at bottom
+        elif (value == array[n-1]): return n-1   # and top
+        else:                       return jl
+
 
 
     """
     #--------------------------------------------------------------
     def getSlicedSize(self, sl, av):
+
+        #not needed anymore, just measure array dimension after extracting data
 
         #array containing final indices and step of sliced array
         #None if no slicing in a given direction, and 0 if only one element

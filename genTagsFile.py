@@ -8,19 +8,17 @@ Created on Wed May  4 15:33:13 2022
 
 import osiris
 import os
-import glob
-import numpy as np
 
 #----------------------------------------------
 run = "CS2DrmhrTrack"
 o = osiris.Osiris(run)
 
-# species=["eL","eR","iL","iR"]
-species=["eL"]
+species=["eL","eR","iL","iR"]
+# species=["eL"]
 sl = slice(None)   #fraction of tags to track
 
-N_CPU = 512
-Npart = 7000
+N_CPU = 1*64
+Npart = 1500
 synth = True
 
 #----------------------------------------------
@@ -32,5 +30,5 @@ else:
 
 #----------------------------------------------
 for i in range(len(species)):
-        o.createTagsFile(species[i],outPath+"/"+species[i]+".tags",sl=sl,
-                         synth=synth, N_CPU=N_CPU, Npart=Npart)
+    o.createTagsFile(species[i],outPath+"/"+species[i]+".tags",sl=sl,
+                     synth=synth, N_CPU=N_CPU, Npart=Npart)
