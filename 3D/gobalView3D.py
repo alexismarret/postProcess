@@ -76,17 +76,17 @@ fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
 
 # sub1.plot(time,Ekin_iL,color="g",label=r"$\mathcal{E}_{kin|iL}$")
 
-# sub1.plot(time,TiLx,color="r",label=r"$T_{x|iL}$")
-# sub1.plot(time,TiLy,color="r",label=r"$T_{y|iL}$",linestyle="dashed")
+# sub1.plot(time,TiLx*o.n0[0],color="r",label=r"$T_{x|iL}$")
+# sub1.plot(time,TiLy*o.n0[0],color="r",label=r"$T_{y|iL}$",linestyle="dashed")
 
-# sub1.plot(time,TeLx,color="b",label=r"$T_{x|eL}$")
-# sub1.plot(time,TeLy,color="b",label=r"$T_{y|eL}$",linestyle="dashed")
+# sub1.plot(time,TeLx*o.n0[0],color="b",label=r"$T_{x|eL}$")
+# sub1.plot(time,TeLy*o.n0[0],color="b",label=r"$T_{y|eL}$",linestyle="dashed")
 
 sub1.plot(time,Jtot,color="orange",label=r"$J_y$")
 
-sub1.plot(time,Ex*100,color="k",linestyle="dashed",label=r"$\mathcal{E}_{Ex}$")
-sub1.plot(time,Ey*100,color="k",linestyle="dashdot",label=r"$\mathcal{E}_{Ey}$")
-sub1.plot(time,Ez*100,color="k",linestyle="dotted",label=r"$\mathcal{E}_{Ez}$")
+sub1.plot(time,Ex,color="k",linestyle="dashed",label=r"$\mathcal{E}_{Ex}$")
+sub1.plot(time,Ey,color="k",linestyle="dashdot",label=r"$\mathcal{E}_{Ey}$")
+sub1.plot(time,Ez,color="k",linestyle="dotted",label=r"$\mathcal{E}_{Ez}$")
 
 sub1.plot(time,Bx,color="gray",linestyle="dashed",label=r"$\mathcal{E}_{Bx}$")
 sub1.plot(time,By,color="gray",linestyle="dashdot",label=r"$\mathcal{E}_{By}$")

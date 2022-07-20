@@ -8,7 +8,6 @@ Created on Fri Jul  1 12:41:20 2022
 
 #----------------------------------------------
 import osiris
-import numpy as np
 
 #----------------------------------------------
 # run  ="CS3D_noKink"
@@ -22,11 +21,11 @@ o = osiris.Osiris(run)
 st = slice(None,None,1)
 time = o.getTimeAxis()[st]
 
-start = 3
+start = 0      #starting time index
 
-timeArray = True
-check = False
-dtype = "float32"
+timeArray = True   #read in parallel or sequentially
+check = False      #check if decomposition is correct
+dtype = "float32"  #dump precision
 
 #----------------------------------------------
 #time series
@@ -45,7 +44,7 @@ if timeArray:
 else:
     for i in range(start,len(time)):
 
-        #empty memory before next loop to avoid 2x same array size in temp memory
+        #empty memory before next component to avoid 2x same array size in memory
         print(i)
 
         compr = o.helmholtzDecompose(comp=0, time=time[i], check=check)
