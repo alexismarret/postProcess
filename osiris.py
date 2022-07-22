@@ -1031,7 +1031,7 @@ class Osiris:
             # stackedTags=sorted(stackedTags, key=operator.itemgetter(0, 1))[sl]
             stackedTags = stackedTags[sl]
 
-        print("Species",species+":",len(stackedTags),"tags")
+        print("Species",species+":",len(stackedTags),"tags saved in",outPath)
 
         #create tag file
         with open(outPath,'w') as f:
@@ -1090,6 +1090,15 @@ class Osiris:
         if   (value == array[0]):   return 0     # edge cases at bottom
         elif (value == array[n-1]): return n-1   # and top
         else:                       return jl
+
+
+    #--------------------------------------------------------------
+    def imExtent(self, x, y):
+
+        #for use with imshow, includes all bins in image
+        ext = (x[0], x[-1]+x[1], y[0], y[-1]+y[1])
+
+        return ext
 
 
 

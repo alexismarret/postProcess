@@ -24,7 +24,6 @@ params={'axes.titlesize' : 9, 'axes.labelsize' : 9, 'lines.linewidth' : 2,
         'legend.borderpad' : 0.1,'legend.labelspacing' : 0.1, 'axes.linewidth' : 1,
         'figure.autolayout': True,'text.usetex': True}
 plt.rcParams.update(params)
-# plt.close("all")
 
 #----------------------------------------------
 run  ="CS3Dtrack"
@@ -34,38 +33,34 @@ x    = o.getAxis("x")
 y    = o.getAxis("y")
 
 time = o.getTimeAxis()
+eps=1e-7
 #----------------------------------------------
 
 axis_kX = np.fft.rfftfreq(len(x),x[1]-x[0])[1:] *2*np.pi
 axis_kY = np.fft.rfftfreq(len(y),y[1]-y[0])[1:] *2*np.pi
 
-ftbz_perp = np.zeros((len(time),len(axis_kY)))
-ftbz_para = np.zeros((len(time),len(axis_kX)))
+ft_perp = np.zeros((len(time),len(axis_kY)))
+ft_para = np.zeros((len(time),len(axis_kX)))
 
 for i in range(len(time)):
 
-    B = o.getB(time[i], "z")
-    ftbz_perp[i] = np.mean(
-                    np.abs(np.fft.rfft(B,axis=1))[:,1:],
+    data = o.getNewData(time[i], "Ecx")
+    ft_perp[i] = np.mean(
+                    np.abs(np.fft.rfft(data,axis=1))[:,1:],
                     axis=(0,2))
-    ftbz_para[i] = np.mean(
-                    np.abs(np.fft.rfft(B,axis=0))[1:],
+    ft_para[i] = np.mean(
+                    np.abs(np.fft.rfft(data,axis=0))[1:],
                     axis=(1,2))
 
 
-
-
-
 #%%
+plt.close("all")
 #----------------------------------------------
 fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
 
-sub1.set_xscale('log')
-# sub1.set_yscale('log')
+extent = o.imExtent(axis_kY, time)
 
-extent=(min(axis_kY),max(axis_kY),min(time),max(time))
-eps=1e-7
-im=sub1.imshow(ftbz_perp + eps,
+im=sub1.imshow(ft_perp + eps,
                extent=extent,origin="lower",
                 aspect="auto",
                cmap="jet",
@@ -76,25 +71,20 @@ divider = make_axes_locatable(sub1)
 cax = divider.append_axes("right", size="5%", pad=0.1)
 fig.colorbar(im, cax=cax)
 
-# sub1.locator_params(nbins=5,axis='y')
-# sub1.locator_params(nbins=5,axis='x')
+sub1.set_yticks(time[::2])
+sub1.set_xscale('log')
 
-sub1.set_xlabel(r'$k\ [\omega_{pi}/c]$')
+sub1.set_xlabel(r'$k_y\ [\omega_{pi}/c]$')
 sub1.set_ylabel(r'$t\ [\omega_{pi}^{-1}]$')
-
-sub1.set_xlim(min(axis_kY),max(axis_kY))
+sub1.grid(axis = 'both',color="silver",linewidth=0.4)
 
 
 #----------------------------------------------
 fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
 
-sub1.set_xscale('log')
-# sub1.set_yscale('log')
+extent = o.imExtent(axis_kX, time)
 
-extent=(min(axis_kX),max(axis_kX),min(time),max(time))
-
-eps=1e-7
-im=sub1.imshow(ftbz_para + eps,
+im=sub1.imshow(ft_para + eps,
                extent=extent,origin="lower",
                 aspect="auto",
                cmap="jet",
@@ -105,13 +95,13 @@ divider = make_axes_locatable(sub1)
 cax = divider.append_axes("right", size="5%", pad=0.1)
 fig.colorbar(im, cax=cax)
 
-# sub1.locator_params(nbins=5,axis='y')
-# sub1.locator_params(nbins=5,axis='x')
+sub1.set_yticks(time[::2])
+sub1.set_xscale('log')
 
-sub1.set_xlabel(r'$k\ [\omega_{pi}/c]$')
+sub1.set_xlabel(r'$k_x\ [\omega_{pi}/c]$')
 sub1.set_ylabel(r'$t\ [\omega_{pi}^{-1}]$')
+sub1.grid(axis = 'both',color="silver",linewidth=0.4)
 
-sub1.set_xlim(min(axis_kX),max(axis_kX))
 
 """
 #----------------------------------------------

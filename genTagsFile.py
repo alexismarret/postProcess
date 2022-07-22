@@ -13,11 +13,11 @@ import os
 run = "CS2DrmhrTrack"
 o = osiris.Osiris(run)
 
-species=["eL","eR","iL","iR"]
-# species=["eL"]
+# species=["eL","eR","iL","iR"]
+species=["eL","iL"]
 sl = slice(None)   #fraction of tags to track
 
-N_CPU = 1*64
+N_CPU = 6
 Npart = 1500
 synth = True
 

@@ -22,9 +22,9 @@ plt.rcParams.update(params)
 plt.close("all")
 
 #----------------------------------------------
-run ="CS3Dtrack"
+# run ="CS3Dtrack"
 # run="testTrackSingle"
-
+run = "testTrackSynth"
 spNorm = "iL"
 o = osiris.Osiris(run,spNorm=spNorm)
 

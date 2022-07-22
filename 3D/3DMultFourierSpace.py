@@ -37,6 +37,9 @@ def plot2D(data,time,extent,ind,figPath):
     fig.subplots_adjust(bottom=0.15)
     # fig.subplots_adjust(left=0.15)
 
+    # sub1.set_xscale('log')
+    # sub1.set_yscale('log')
+
     im=sub1.imshow(data[0,...].T,
                    extent=extent,origin="lower",
                    aspect=1,
@@ -49,8 +52,8 @@ def plot2D(data,time,extent,ind,figPath):
     cax = divider.append_axes("right", size="5%", pad=0.1)
     fig.colorbar(im, cax=cax, ax=sub1)
 
-    sub1.locator_params(nbins=10,axis='y')
-    sub1.locator_params(nbins=10,axis='x')
+    # sub1.locator_params(nbins=10,axis='y')
+    # sub1.locator_params(nbins=10,axis='x')
 
     sub1.set_xlabel(r'$k_x\ [\omega_{pi}/c]$')
     sub1.set_ylabel(r'$k_y\ [\omega_{pi}/c]$')
@@ -87,12 +90,14 @@ def plot2D(data,time,extent,ind,figPath):
 
 #----------------------------------------------
 run  ="CS3Dtrack"
+# run = "CS2DrmhrTrack"
 o = osiris.Osiris(run,spNorm="iL")
 
 sx = slice(None,None,1)
 sy = slice(None,None,1)
 sz = slice(None,None,1)
 sl = (sx,sy,0)
+# sl = (sx,sy)
 
 x    = o.getAxis("x")[sx]
 y    = o.getAxis("y")[sy]
@@ -102,24 +107,22 @@ st = slice(None,None,1)
 time = o.getTimeAxis()[st]
 
 #----------------------------------------------
-axis_kX = np.fft.rfftfreq(len(x),x[1]-x[0]) *2*np.pi
-axis_kY = np.fft.rfftfreq(len(y),y[1]-y[0]) *2*np.pi
+kX = np.fft.rfftfreq(len(x),x[1]-x[0]) *2*np.pi
+kY = np.fft.rfftfreq(len(y),y[1]-y[0]) *2*np.pi
 
-eps = 0
 indMid = len(x)//2
 
-extent=(min(axis_kX),max(axis_kX),min(axis_kY),max(axis_kY))
+extent = o.imExtent(kX, kY)
 stages = pf.distrib_task(0, len(time)-1, o.nbrCores)
 
 #----------------------------------------------
-#----------------------------------------------
-data = o.getB(time,"x",sl=sl,parallel=False)
+data = o.getNewData(time, "Ecx", sl=sl, parallel=False)
 
 ftB = np.abs(np.fft.rfft2(data))
-ftB = np.flip(ftB[:,:indMid+1,:],axis=-1) + eps
+ftB = np.flip(ftB[:,:indMid+1,:],axis=-1)
 
 #----------------------------------------------
-path = o.path+"/plots/fourierBx"
+path = o.path+"/plots/fourierEcx"
 o.setup_dir(path)
 
 it = ((ftB [s[0]:s[1]],
@@ -128,49 +131,15 @@ it = ((ftB [s[0]:s[1]],
 
 pf.parallel(plot2D, it, o.nbrCores, noInteract=True)
 
+
 #----------------------------------------------
-#----------------------------------------------
-data = o.getB(time,"y",sl=sl,parallel=False)
+data = o.getE(time, "x", sl=sl, parallel=False) - data
 
 ftB = np.abs(np.fft.rfft2(data))
-ftB = np.flip(ftB[:,:indMid+1,:],axis=-1) + eps
+ftB = np.flip(ftB[:,:indMid+1,:],axis=-1)
 
 #----------------------------------------------
-path = o.path+"/plots/fourierBy"
-o.setup_dir(path)
-
-it = ((ftB [s[0]:s[1]],
-       time[s[0]:s[1]],
-       extent, s[0], path) for s in stages)
-
-pf.parallel(plot2D, it, o.nbrCores, noInteract=True)
-
-#----------------------------------------------
-#----------------------------------------------
-data = o.getE(time,"x",sl=sl,parallel=False)
-
-ftB = np.abs(np.fft.rfft2(data))
-ftB = np.flip(ftB[:,:indMid+1,:],axis=-1) + eps
-
-#----------------------------------------------
-path = o.path+"/plots/fourierEx"
-o.setup_dir(path)
-
-it = ((ftB [s[0]:s[1]],
-       time[s[0]:s[1]],
-       extent, s[0], path) for s in stages)
-
-pf.parallel(plot2D, it, o.nbrCores, noInteract=True)
-
-#----------------------------------------------
-#----------------------------------------------
-data = o.getE(time,"y",sl=sl,parallel=False)
-
-ftB = np.abs(np.fft.rfft2(data))
-ftB = np.flip(ftB[:,:indMid+1,:],axis=-1) + eps
-
-#----------------------------------------------
-path = o.path+"/plots/fourierEy"
+path = o.path+"/plots/fourierErx"
 o.setup_dir(path)
 
 it = ((ftB [s[0]:s[1]],

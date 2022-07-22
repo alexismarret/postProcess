@@ -32,8 +32,8 @@ plt.rcParams.update(params)
 #         "TestRes/uniform8",
 #         "TestRes/uniform16")
 
-# run =("CS3Dtrack",)
-run = ("testTrackSingle",)
+run =("CS3Dtrack",)
+# run = ("testTrackSingle",)
 
 #----------------------------------------------
 fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)

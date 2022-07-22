@@ -20,33 +20,34 @@ plt.rcParams.update(params)
 
 #--------------------------------------------------------------
 dim = "3D"
-Nnodes = 512
+Nnodes = 64
 NCPUperNodes = 64
 Nthreads = 4
 
-Ncell = np.array([512,512,512])
-duration = 200              #in units of 1/w_pi
+Ncell = np.array([512,512,512])   #below 30 cells per core, bad performance
+duration = 1000              #in units of 1/w_pi
 
 v  = 0.5                    #velocity in units of c (=beta)
 n0 = 0.5     #density in proper frame
 T  = 1e-6    #in units of me * c^2 (=511 KeV) in rest frame
-alfMach = 20   #wanted Alfvenic Mach number
+alfMach = 40   #wanted Alfvenic Mach number
 B_angle = 80  #angle between x axis and B in degrees in (x,y) plane
 mu = 32
 
-dx = 1/4      #in units of c/w_pe
-dy = 1/4
-dz = 1/4
+dx = 1/2      #in units of c/w_pe
+dy = 1/2
+dz = 1/2
 
 ppc = 8
 nPop = 4
 
-dtDump = 0.5    #dump time step desired in units of 1/w_pi
-
+dtDump = 40    #dump time step desired in units of 1/w_pi
+Nquant = 4*7 + 3 + 6  #number of quantities dumped
 scanCoresRep = False
-Nmin = 128
-Nmax = 256
+Nmin = 64
+Nmax = 512
 
+#"mpiio-coll" (<=128 nodes), "mpiio-indep" (>128 nodes)
 #--------------------------------------------------------------
 lorentz = 1./np.sqrt(1-v**2)
 u = lorentz * v   #momentum
@@ -73,8 +74,8 @@ gammaKink = 3/2 * v * np.sqrt(1/(mu*R0))    #[wpi]
 lambdaKink = 2*np.pi * 2/3 * np.sqrt(R0)    #[c/wpi]
 kKink = 2*np.pi/lambdaKink
 
-#assuming 8 e-foldings and an empyrical factor 3 correction for isotropization time
-tEq = (8/gammaIfil + 8/gammaKink)*3
+#assuming 8 e-foldings and an empyrical factor 4 correction for isotropization time
+tEq = (8/gammaIfil + 8/gammaKink)*4
 
 if dim=="1D":
     Ncell = Ncell[0]
@@ -102,7 +103,7 @@ nDump = int(np.floor(nIter/ndumpTot))
 dtDumpWpe = dtDump*np.sqrt(mu)
 
 nbrPart = ppc*np.product(Ncell)*nPop
-t_estimate = 1e-6 * nIter*nbrPart /3600. *3   #1us per part per dt, factor 3 correction
+t_estimate = 1e-6 * nIter*nbrPart /3600.    #1us per part per dt
 sizeDump = 32./8. / (1024.**3) * np.product(Ncell)*ndumpTot
 Ncores = Nnodes*NCPUperNodes
 durationWpe = duration*np.sqrt(mu)
@@ -248,7 +249,7 @@ print("-------------------------------")
 print("Estimated time:", round(t_estimate/Ncores,1),
       "hours on", Ncores,"CPU cores -",
       round(t_estimate,1),"hours sys")
-print("Size of data dump:", round(sizeDump,1),"GB per grid quantity")
+print("Total Size:", round(Nquant*sizeDump,1),"GB |", round(sizeDump,1),"GB per grid quantity")
 print("-------------------------------")
 
 

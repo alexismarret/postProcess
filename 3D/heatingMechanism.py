@@ -40,15 +40,19 @@ mass = o.rqm[o.sIndex("iL")]
 lorentz0 = np.sqrt(1+np.sum(o.ufl[0]**2))
 v0 = o.ufl[0,0]/lorentz0
 eps0 = lorentz0-1
+
 #----------------------------------------------
 Te  = np.zeros(len(time))
+Ex = np.zeros(len(time))
 Ecx = np.zeros(len(time))
 Erx = np.zeros(len(time))
 
 for i in range(len(time)):
     Te[i]  = np.mean(o.getUth(time[i], "eL", "x", sl=sl)**2, axis=avnp)
+    E = o.getE(time[i], "x", sl=sl)
+    Ex[i] = np.mean(E**2, axis=avnp)/2
     Ecx[i] = np.mean(o.getNewData(time[i], "Ecx", sl=sl)**2, axis=avnp)/2
-    Erx[i] = np.mean((o.getE(time[i], "x", sl=sl) - Ecx[i])**2, axis=avnp)/2
+    Erx[i] = np.mean((E - Ecx[i])**2, axis=avnp)/2
 
 
 # Ex,Ey,Ez = o.getEnergyIntegr(time, "E")
@@ -58,17 +62,18 @@ for i in range(len(time)):
 # B2 = Bx+By+Bz
 
 #%%
-plt.close("all")
+# plt.close("all")
 #----------------------------------------------
 fig, sub1 = plt.subplots(1,figsize=(4.1,2.8),dpi=300)
 
-sub1.plot(time,Te*o.n0[0] / (3*32),color="b")
+sub1.plot(time,Te*o.n0[0] ,color="b")
 # sub1.plot(time,B2*(1-v0**2),color="g")
 # sub1.plot(time,E2,color="r")
 
 factor = 1/v0**2-1
 
-sub1.plot(time,Ecx*factor,color="k")
+sub1.plot(time,Ex,color="r")
+sub1.plot(time,Ecx,color="k")
 sub1.plot(time,Erx,color="k",linestyle="--")
 
-
+sub1.set_xlabel(r"$t\ [\omega_{pi}^{-1}]$")

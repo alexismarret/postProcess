@@ -21,7 +21,7 @@ run = ['CS3DMu64Ma20theta10','CS3DMu64Ma40theta10',
 
 o = osiris.Osiris(run[0],spNorm="iL")
 
-ind = 512
+ind = 50
 sx = slice(0,ind,1)
 sy = slice(0,ind,1)
 sz = slice(0,ind,1)
@@ -169,6 +169,6 @@ sub1.plot(time, Te_mu32,color="k",linestyle="--",label="CS3Dmu32noB")
 sub2.plot(time, Ti_mu32,color="k")
 
 sub2.set_xlabel(r"$t\ [\omega_{pi}^{-1}]$")
-sub1.set_ylabel(r"$T_e\ [T_0]$")
-sub2.set_ylabel(r"$T_i\ [T_0]$")
+sub1.set_ylabel(r"$T_e\ [m_ec^2]$")
+sub2.set_ylabel(r"$T_i\ [m_ec^2]$")
 sub1.legend(frameon=False)
