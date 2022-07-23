@@ -25,23 +25,23 @@ NCPUperNodes = 64
 Nthreads = 4
 
 Ncell = np.array([512,512,512])   #below 30 cells per core, bad performance
-duration = 1000              #in units of 1/w_pi
+duration = 140              #in units of 1/w_pi
 
 v  = 0.5                    #velocity in units of c (=beta)
 n0 = 0.5     #density in proper frame
 T  = 1e-6    #in units of me * c^2 (=511 KeV) in rest frame
-alfMach = 40   #wanted Alfvenic Mach number
-B_angle = 80  #angle between x axis and B in degrees in (x,y) plane
-mu = 32
+alfMach = 5   #wanted Alfvenic Mach number
+B_angle = 10  #angle between x axis and B in degrees in (x,y) plane
+mu = 100
 
-dx = 1/2      #in units of c/w_pe
-dy = 1/2
-dz = 1/2
+dx = 1/4      #in units of c/w_pe
+dy = 1/4
+dz = 1/4
 
 ppc = 8
 nPop = 4
 
-dtDump = 40    #dump time step desired in units of 1/w_pi
+dtDump = 3    #dump time step desired in units of 1/w_pi
 Nquant = 4*7 + 3 + 6  #number of quantities dumped
 scanCoresRep = False
 Nmin = 64

@@ -176,7 +176,7 @@ for folder in folders:
                             if ((ave[0]>1) or (ave[1]>1)):
                                 fname_out = quantfolder[:-1]+'-savg/' + fname.split('/')[-1].replace('.zdf','.h5').replace(quant,quant+'-savg-{:d}-{:d}'.format(ave[0],ave[1]))
                             else:
-                                fname_out = quantfolder[:-1]+'-full/' + fname.split('/')[-1].replace('.zdf','.h5')
+                                fname_out = quantfolder[:-1]+'/' + fname.split('/')[-1].replace('.zdf','.h5')
                             file_info.append([fname,fname_out,quant,ave])
 
 
